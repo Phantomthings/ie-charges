@@ -103,20 +103,22 @@ async def get_sessions_stats(
     # Récupération complète des données avec toutes les colonnes nécessaires
     sql = f"""
         SELECT
-            Site,
-            PDC,
-            `Datetime start`,
-            `Datetime end`,
-            `Energy (Kwh)`,
-            `Mean Power (Kw)`,
-            `Max Power (Kw)`,
-            `SOC Start`,
-            `SOC End`,
-            `MAC Address`,
-            `State of charge(0:good, 1:error)` as state,
-            type_erreur,
-            moment
-        FROM kpi_sessions
+            k.Site,
+            k.PDC,
+            k.`Datetime start`,
+            k.`Datetime end`,
+            k.`Energy (Kwh)`,
+            k.`Mean Power (Kw)`,
+            k.`Max Power (Kw)`,
+            k.`SOC Start`,
+            k.`SOC End`,
+            k.`MAC Address`,
+            k.`State of charge(0:good, 1:error)` as state,
+            k.type_erreur,
+            k.moment,
+            c.Vehicle
+        FROM kpi_sessions k
+        LEFT JOIN charges_mac c ON k.`MAC Address` = c.`MAC Address`
         WHERE {where_clause}
     """
 
