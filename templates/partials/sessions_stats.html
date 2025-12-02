@@ -586,12 +586,12 @@ updatePDCDisplay();
         {% if vehicle_debug_info.has_column and vehicle_debug_info.valid_count == 0 %}
         <br>
         <strong>💡 Suggestion :</strong> Tous les véhicules sont marqués comme "Unknown".
-        Vérifiez que la table <code>kpi_charges_mac</code> contient bien des données de véhicules
+        Vérifiez que la table <code>kpi_charges_mac</code> contient bien des noms de véhicules
         et que le JOIN avec <code>kpi_sessions</code> fonctionne correctement (voir le fichier <code>diagnose_vehicle.sql</code>).
         {% elif not vehicle_debug_info.has_column %}
         <br>
-        <strong>💡 Suggestion :</strong> La colonne Vehicle n'existe pas dans les données sources.
-        Vérifiez que la table <code>kpi_charges_mac</code> existe et contient une colonne Vehicle.
+        <strong>💡 Suggestion :</strong> Les véhicules sont fournis par la table <code>kpi_charges_mac</code>.
+        Vérifiez que cette table existe et possède la colonne <code>Vehicle</code>.
         {% endif %}
         {% else %}
         Tous les véhicules sont marqués comme "Unknown".
