@@ -115,7 +115,8 @@ async def get_sessions_stats(
             `MAC Address`,
             `State of charge(0:good, 1:error)` as state,
             type_erreur,
-            moment
+            moment,
+            Vehicle
         FROM kpi_sessions
         WHERE {where_clause}
     """
@@ -269,6 +270,44 @@ async def get_sessions_stats(
             reverse=False  # Tri croissant pour avoir les plus faibles en bas
         )
 
+    # === STATISTIQUES PAR TYPE DE VÉHICULE ===
+    vehicle_stats = []
+    if "Vehicle" in df.columns and not df.empty:
+        # Nettoyer les données Vehicle
+        df_vehicle = df.copy()
+        df_vehicle["Vehicle"] = df_vehicle["Vehicle"].astype(str).str.strip()
+        df_vehicle["Vehicle"] = df_vehicle["Vehicle"].replace(
+            {"": "Unknown", "nan": "Unknown", "none": "Unknown", "NULL": "Unknown", "None": "Unknown"},
+            regex=False
+        )
+        df_vehicle["Vehicle"] = df_vehicle["Vehicle"].fillna("Unknown")
+
+        # Exclure les véhicules inconnus
+        df_vehicle = df_vehicle[df_vehicle["Vehicle"] != "Unknown"]
+
+        if not df_vehicle.empty:
+            # Grouper par véhicule et calculer les statistiques
+            vehicle_grouped = (
+                df_vehicle.groupby("Vehicle", dropna=False)["is_ok_filt"]
+                .agg(total="size", ok="sum")
+                .reset_index()
+            )
+            vehicle_grouped["nok"] = vehicle_grouped["total"] - vehicle_grouped["ok"]
+            vehicle_grouped["percent_ok"] = np.where(
+                vehicle_grouped["total"] > 0,
+                (vehicle_grouped["ok"] / vehicle_grouped["total"] * 100).round(2),
+                0.0
+            )
+            vehicle_grouped["percent_nok"] = 100 - vehicle_grouped["percent_ok"]
+
+            # Trier par total décroissant puis par % réussite décroissant
+            vehicle_grouped = vehicle_grouped.sort_values(
+                ["total", "percent_ok"],
+                ascending=[False, False]
+            ).reset_index(drop=True)
+
+            vehicle_stats = vehicle_grouped.to_dict("records")
+
     return templates.TemplateResponse(
         "partials/sessions_stats.html",
         {
@@ -304,6 +343,8 @@ async def get_sessions_stats(
             "durations_by_site": durations_by_site,
             "durations_by_site_dict": durations_by_site_dict,
             "site_options_dur": list(durations_by_site_dict.keys()),
+            # Statistiques par véhicule
+            "vehicle_stats": vehicle_stats,
         }
     )
 
