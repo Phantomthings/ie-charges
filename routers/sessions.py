@@ -28,16 +28,34 @@ def _get_vehicle_strategy():
     if _vehicle_strategy_cache is not None:
         return _vehicle_strategy_cache
 
-    # 1. Vérifier si kpi_sessions a directement la colonne Vehicle
+    # 1. Vérifier si kpi_sessions a directement la colonne Vehicle avec des données valides
+    has_valid_vehicle_in_sessions = False
     try:
         sample_sql = "SELECT * FROM kpi_sessions LIMIT 1"
         sample_df = query_df(sample_sql)
-        has_vehicle_in_sessions = "Vehicle" in sample_df.columns if not sample_df.empty else False
-    except Exception:
-        has_vehicle_in_sessions = False
+        has_vehicle_column = "Vehicle" in sample_df.columns if not sample_df.empty else False
 
-    if has_vehicle_in_sessions:
-        # Vehicle existe directement dans kpi_sessions
+        if has_vehicle_column:
+            # Vérifier si la colonne contient des données valides (pas seulement "Unknown" ou NULL)
+            check_sql = """
+                SELECT COUNT(*) as total,
+                       SUM(CASE
+                           WHEN Vehicle IS NOT NULL
+                           AND Vehicle != 'Unknown'
+                           AND TRIM(Vehicle) != ''
+                           THEN 1 ELSE 0
+                       END) as valid_count
+                FROM kpi_sessions
+                LIMIT 1
+            """
+            check_df = query_df(check_sql)
+            if not check_df.empty and check_df.iloc[0]['valid_count'] > 0:
+                has_valid_vehicle_in_sessions = True
+    except Exception:
+        has_valid_vehicle_in_sessions = False
+
+    if has_valid_vehicle_in_sessions:
+        # Vehicle existe directement dans kpi_sessions avec des données valides
         _vehicle_strategy_cache = ("k.Vehicle", "")
     elif table_exists("kpi_charges_mac"):
         # Vehicle existe dans kpi_charges_mac, faire un LEFT JOIN
