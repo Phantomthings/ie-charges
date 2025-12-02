@@ -39,7 +39,12 @@ def _build_conditions(sites: str, date_debut: date | None, date_fin: date | None
 
 
 def _apply_status_filters(df: pd.DataFrame, error_type_list: list[str], moment_list: list[str]) -> pd.DataFrame:
-    df["is_ok"] = pd.to_numeric(df["state"], errors="coerce").fillna(0).astype(int).eq(0)
+    if "is_ok_raw" in df.columns:
+        base_ok = df["is_ok_raw"].astype(bool)
+    else:
+        base_ok = pd.to_numeric(df.get("state"), errors="coerce").fillna(0).astype(int).eq(0)
+
+    df["is_ok"] = base_ok
     mask_nok = ~df["is_ok"]
     mask_type = (
         df["type_erreur"].isin(error_type_list)
@@ -101,11 +106,13 @@ async def get_sessions_stats(
     where_clause, params = _build_conditions(sites, date_debut, date_fin)
 
     # Récupération complète des données avec toutes les colonnes nécessaires
-    if table_exists("charges_mac"):
-        vehicle_select = "c.Vehicle"
-        join_clause = "LEFT JOIN charges_mac c ON k.`MAC Address` = c.`MAC Address`"
+    if table_exists("kpi_charges_mac"):
+        vehicle_select = "cm.Vehicle"
+        is_ok_select = ", cm.is_ok AS is_ok_mac"
+        join_clause = "LEFT JOIN kpi_charges_mac cm ON k.`MAC Address` = cm.`MAC Address`"
     else:
         vehicle_select = "NULL AS Vehicle"
+        is_ok_select = ""
         join_clause = ""
 
     sql = f"""
@@ -124,6 +131,7 @@ async def get_sessions_stats(
             k.type_erreur,
             k.moment,
             {vehicle_select}
+            {is_ok_select}
         FROM kpi_sessions k
         {join_clause}
         WHERE {where_clause}
@@ -149,8 +157,14 @@ async def get_sessions_stats(
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # Déterminer is_ok
-    df["is_ok_raw"] = pd.to_numeric(df["state"], errors="coerce").fillna(0).astype(int).eq(0)
+    # Déterminer is_ok (priorité à kpi_charges_mac s'il est présent)
+    state_ok = pd.to_numeric(df.get("state"), errors="coerce").fillna(0).astype(int).eq(0)
+
+    if "is_ok_mac" in df.columns:
+        mac_ok = pd.to_numeric(df.get("is_ok_mac"), errors="coerce")
+        df["is_ok_raw"] = np.where(mac_ok.notna(), mac_ok.astype(int).eq(1), state_ok)
+    else:
+        df["is_ok_raw"] = state_ok
 
     # Filtrage par type d'erreur et moment
     df = _apply_status_filters(df, error_type_list, moment_list)
