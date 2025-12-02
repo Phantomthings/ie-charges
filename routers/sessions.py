@@ -10,7 +10,7 @@ from urllib.parse import urlencode
 import pandas as pd
 import numpy as np
 
-from db import query_df
+from db import query_df, table_exists
 from routers.filters import MOMENT_ORDER
 
 router = APIRouter(tags=["sessions"])
@@ -101,6 +101,13 @@ async def get_sessions_stats(
     where_clause, params = _build_conditions(sites, date_debut, date_fin)
 
     # Récupération complète des données avec toutes les colonnes nécessaires
+    if table_exists("charges_mac"):
+        vehicle_select = "c.Vehicle"
+        join_clause = "LEFT JOIN charges_mac c ON k.`MAC Address` = c.`MAC Address`"
+    else:
+        vehicle_select = "NULL AS Vehicle"
+        join_clause = ""
+
     sql = f"""
         SELECT
             k.Site,
@@ -116,9 +123,9 @@ async def get_sessions_stats(
             k.`State of charge(0:good, 1:error)` as state,
             k.type_erreur,
             k.moment,
-            c.Vehicle
+            {vehicle_select}
         FROM kpi_sessions k
-        LEFT JOIN charges_mac c ON k.`MAC Address` = c.`MAC Address`
+        {join_clause}
         WHERE {where_clause}
     """
 
