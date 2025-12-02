@@ -94,19 +94,6 @@ if table_exists("kpi_charges_mac"):
 
 else:
     print("   ❌ La table kpi_charges_mac n'existe PAS")
-    print("\n   Tentative de vérification dans kpi_sessions...")
-
-    if table_exists("kpi_sessions"):
-        print("   ✅ La table kpi_sessions existe")
-        df_sample = query_df("SELECT * FROM kpi_sessions LIMIT 1")
-        print(f"   Colonnes : {', '.join(df_sample.columns.tolist())}")
-
-        if "Vehicle" in df_sample.columns:
-            print("   ✅ La colonne 'Vehicle' existe dans kpi_sessions")
-        else:
-            print("   ❌ La colonne 'Vehicle' n'existe PAS dans kpi_sessions")
-    else:
-        print("   ❌ La table kpi_sessions n'existe PAS non plus")
 
 print("\n" + "=" * 60)
 print("FIN DU DIAGNOSTIC")

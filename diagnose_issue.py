@@ -11,34 +11,8 @@ try:
     print("DIAGNOSTIC DES DONNÉES VEHICLE")
     print("=" * 70)
 
-    # 1. Vérifier kpi_sessions
-    print("\n1. Analyse de kpi_sessions.Vehicle")
-    print("-" * 70)
-
-    result = query_df("""
-        SELECT
-            COUNT(*) as total,
-            SUM(CASE WHEN Vehicle IS NULL THEN 1 ELSE 0 END) as null_count,
-            SUM(CASE WHEN Vehicle = 'Unknown' THEN 1 ELSE 0 END) as unknown_count,
-            SUM(CASE
-                WHEN Vehicle IS NOT NULL
-                AND Vehicle != 'Unknown'
-                AND TRIM(Vehicle) != ''
-                THEN 1 ELSE 0
-            END) as valid_count
-        FROM kpi_sessions
-        LIMIT 1
-    """)
-
-    if not result.empty:
-        row = result.iloc[0]
-        print(f"   Total de sessions: {row['total']}")
-        print(f"   NULL: {row['null_count']}")
-        print(f"   'Unknown': {row['unknown_count']}")
-        print(f"   Valeurs valides: {row['valid_count']}")
-
-    # 2. Vérifier kpi_charges_mac
-    print("\n2. Analyse de kpi_charges_mac")
+    # 1. Vérifier kpi_charges_mac
+    print("\n1. Analyse de kpi_charges_mac")
     print("-" * 70)
 
     if table_exists("kpi_charges_mac"):
@@ -92,8 +66,8 @@ try:
     else:
         print("   ❌ La table kpi_charges_mac n'existe PAS")
 
-    # 3. Tester le JOIN actuel
-    print("\n3. Test du JOIN entre kpi_sessions et kpi_charges_mac")
+    # 2. Tester le JOIN actuel
+    print("\n2. Test du JOIN entre kpi_sessions et kpi_charges_mac")
     print("-" * 70)
 
     if table_exists("kpi_charges_mac"):
