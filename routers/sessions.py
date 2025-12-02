@@ -115,8 +115,7 @@ async def get_sessions_stats(
             `MAC Address`,
             `State of charge(0:good, 1:error)` as state,
             type_erreur,
-            moment,
-            Vehicle
+            moment
         FROM kpi_sessions
         WHERE {where_clause}
     """
