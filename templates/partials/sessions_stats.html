@@ -1,0 +1,68 @@
+<!-- Fragment: Stats sessions -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ total }}</div>
+        <div class="stat-label">Sessions totales</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: #10b981;">{{ ok }}</div>
+        <div class="stat-label">Réussies</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: #ef4444;">{{ nok }}</div>
+        <div class="stat-label">Échecs</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: #3b82f6;">{{ taux_reussite }}%</div>
+        <div class="stat-label">Taux de réussite</div>
+    </div>
+</div>
+
+{% if top_sites %}
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
+    <!-- Top sites par volume -->
+    <div>
+        <h4 style="font-size: 0.95rem; color: #1e293b; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e2e8f0;">
+            🏆 Top 10 Sites - Volume de charges
+        </h4>
+        <div class="sites-ranking">
+            {% for site in top_sites %}
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #f1f5f9;">
+                <span style="font-weight: 500; color: #374151;">{{ site.Site }}</span>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <span style="font-size: 0.85rem; color: #64748b;">{{ site.total }} sessions</span>
+                    <span style="font-weight: 600; color: {% if site.taux_ok >= 90 %}#10b981{% elif site.taux_ok >= 70 %}#f59e0b{% else %}#ef4444{% endif %};">
+                        {{ site.taux_ok }}%
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Top sites par échecs -->
+    <div>
+        <h4 style="font-size: 0.95rem; color: #1e293b; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e2e8f0;">
+            ⚠️ Top 10 Sites - Nombre d'échecs
+        </h4>
+        <div class="sites-ranking">
+            {% for site in top_echecs %}
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #f1f5f9;">
+                <span style="font-weight: 500; color: #374151;">{{ site.Site }}</span>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <span style="font-size: 0.85rem; color: #ef4444; font-weight: 600;">{{ site.nok }} échecs</span>
+                    <span style="font-size: 0.8rem; color: #94a3b8;">/ {{ site.total }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if total == 0 %}
+<div class="empty-state">
+    <div class="icon">📊</div>
+    <div class="message">Aucune donnée pour cette période</div>
+</div>
+{% endif %}
