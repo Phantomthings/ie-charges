@@ -465,7 +465,9 @@ updatePDCDisplay();
     <!-- Contrôles de pagination -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
         <div style="font-size: 0.85rem; color: #64748b;">
-            <span id="vehicle-range-info">Affichage 1-50 sur {{ vehicle_stats|length }}</span>
+            {% set total_vehicle = vehicle_stats|length %}
+            {% set first_range = [total_vehicle, 50]|min %}
+            <span id="vehicle-range-info">Affichage 1-{{ first_range }} sur {{ total_vehicle }}</span>
         </div>
     </div>
 
@@ -483,6 +485,16 @@ updatePDCDisplay();
                 </tr>
             </thead>
             <tbody id="vehicle-stats-tbody">
+                {% for row in vehicle_stats[:50] %}
+                <tr>
+                    <td style="font-weight: 600;">{{ row.Vehicle }}</td>
+                    <td style="text-align: right;">{{ row.total }}</td>
+                    <td style="text-align: right; color: #10b981;">{{ row.ok }}</td>
+                    <td style="text-align: right; color: #ef4444;">{{ row.nok }}</td>
+                    <td style="text-align: right; font-weight: 600;">{{ row.percent_ok }}%</td>
+                    <td style="text-align: right;">{{ row.percent_nok }}%</td>
+                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
@@ -490,7 +502,8 @@ updatePDCDisplay();
     <!-- Boutons de pagination -->
     <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.75rem;">
         <button id="vehicle-prev-btn" class="stats-selector" style="padding: 0.5rem 1rem; cursor: pointer;" onclick="prevVehiclePage()">← Précédent</button>
-        <span id="vehicle-page-info" style="padding: 0.5rem; font-size: 0.85rem; color: #64748b;"></span>
+        {% set total_vehicle_pages = (vehicle_stats|length // 50) + (1 if vehicle_stats|length % 50 > 0 else 0) %}
+        <span id="vehicle-page-info" style="padding: 0.5rem; font-size: 0.85rem; color: #64748b;">Page 1 / {{ total_vehicle_pages if total_vehicle_pages else 1 }}</span>
         <button id="vehicle-next-btn" class="stats-selector" style="padding: 0.5rem 1rem; cursor: pointer;" onclick="nextVehiclePage()">Suivant →</button>
     </div>
 
