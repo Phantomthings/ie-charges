@@ -242,22 +242,6 @@
 {% if durations_by_site %}
 <h5 style="font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; color: #64748b;">Par Site</h5>
 
-<!-- Contrôles de pagination -->
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-    <div style="font-size: 0.85rem; color: #64748b;">
-        <span id="site-range-info">Affichage 1-50 sur {{ durations_by_site|length }}</span>
-    </div>
-    <div>
-        <label for="site-rows-per-page" style="font-size: 0.85rem; color: #64748b; margin-right: 0.5rem;">Lignes par page:</label>
-        <select id="site-rows-per-page" class="stats-selector" style="width: auto; padding: 0.25rem 0.5rem;" onchange="updateSiteTablePagination()">
-            <option value="25">25</option>
-            <option value="50" selected>50</option>
-            <option value="100">100</option>
-            <option value="all">Tout afficher</option>
-        </select>
-    </div>
-</div>
-
 <!-- Conteneur avec scroll -->
 <div style="max-height: 500px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
     <table class="stats-table" id="site-duration-table" style="margin: 0;">
@@ -282,20 +266,11 @@
     </table>
 </div>
 
-<!-- Boutons de pagination -->
-<div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.75rem;">
-    <button id="site-prev-btn" class="stats-selector" style="padding: 0.5rem 1rem; cursor: pointer;" onclick="prevSitePage()">← Précédent</button>
-    <span id="site-page-info" style="padding: 0.5rem; font-size: 0.85rem; color: #64748b;"></span>
-    <button id="site-next-btn" class="stats-selector" style="padding: 0.5rem 1rem; cursor: pointer;" onclick="nextSitePage()">Suivant →</button>
-</div>
-
 <script>
-// Gestion du tri et de la pagination pour le tableau "Par Site"
+// Gestion du tri pour le tableau "Par Site"
 let siteData = {{ durations_by_site | tojson }};
 let siteSortColumn = 'Heures';
 let siteSortAsc = false;
-let siteCurrentPage = 1;
-let siteRowsPerPage = 50;
 
 function sortSiteTable(column) {
     if (siteSortColumn === column) {
@@ -324,24 +299,14 @@ function sortSiteTable(column) {
     document.getElementById('sort-Site').textContent = siteSortColumn === 'Site' ? (siteSortAsc ? '▲' : '▼') : '▼';
     document.getElementById('sort-Heures').textContent = siteSortColumn === 'Heures' ? (siteSortAsc ? '▲' : '▼') : '▼';
 
-    siteCurrentPage = 1; // Réinitialiser à la première page
-    renderSiteTable();
-}
-
-function updateSiteTablePagination() {
-    const selector = document.getElementById('site-rows-per-page');
-    siteRowsPerPage = selector.value === 'all' ? siteData.length : parseInt(selector.value);
-    siteCurrentPage = 1;
     renderSiteTable();
 }
 
 function renderSiteTable() {
     const tbody = document.getElementById('site-duration-tbody');
-    const startIdx = (siteCurrentPage - 1) * siteRowsPerPage;
-    const endIdx = siteRowsPerPage === siteData.length ? siteData.length : Math.min(startIdx + siteRowsPerPage, siteData.length);
 
     let html = '';
-    for (let i = startIdx; i < endIdx; i++) {
+    for (let i = 0; i < siteData.length; i++) {
         const row = siteData[i];
         html += `<tr>
             <td>${row.Site}</td>
@@ -349,30 +314,6 @@ function renderSiteTable() {
         </tr>`;
     }
     tbody.innerHTML = html;
-
-    // Mise à jour des infos de pagination
-    const totalPages = Math.ceil(siteData.length / siteRowsPerPage);
-    document.getElementById('site-range-info').textContent = `Affichage ${startIdx + 1}-${endIdx} sur ${siteData.length}`;
-    document.getElementById('site-page-info').textContent = `Page ${siteCurrentPage} / ${totalPages}`;
-
-    // Activer/désactiver les boutons
-    document.getElementById('site-prev-btn').disabled = siteCurrentPage === 1;
-    document.getElementById('site-next-btn').disabled = siteCurrentPage >= totalPages;
-}
-
-function prevSitePage() {
-    if (siteCurrentPage > 1) {
-        siteCurrentPage--;
-        renderSiteTable();
-    }
-}
-
-function nextSitePage() {
-    const totalPages = Math.ceil(siteData.length / siteRowsPerPage);
-    if (siteCurrentPage < totalPages) {
-        siteCurrentPage++;
-        renderSiteTable();
-    }
 }
 
 // Initialiser le tableau au chargement
@@ -521,31 +462,148 @@ updatePDCDisplay();
 
 {% if vehicle_stats %}
 <div style="margin-top: 1rem;">
+    <!-- Contrôles de pagination -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <div style="font-size: 0.85rem; color: #64748b;">
+            <span id="vehicle-range-info">Affichage 1-50 sur {{ vehicle_stats|length }}</span>
+        </div>
+        <div>
+            <label for="vehicle-rows-per-page" style="font-size: 0.85rem; color: #64748b; margin-right: 0.5rem;">Lignes par page:</label>
+            <select id="vehicle-rows-per-page" class="stats-selector" style="width: auto; padding: 0.25rem 0.5rem;" onchange="updateVehicleTablePagination()">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="all">Tout afficher</option>
+            </select>
+        </div>
+    </div>
+
     <!-- Tableau des statistiques -->
-    <table class="stats-table">
-        <thead>
-            <tr>
-                <th>Véhicule</th>
-                <th style="text-align: right;">Total</th>
-                <th style="text-align: right;">OK</th>
-                <th style="text-align: right;">NOK</th>
-                <th style="text-align: right;">% Réussite</th>
-                <th style="text-align: right;">% Échec</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in vehicle_stats %}
-            <tr>
-                <td style="font-weight: 600;">{{ row.Vehicle }}</td>
-                <td style="text-align: right;">{{ row.total }}</td>
-                <td style="text-align: right; color: #10b981;">{{ row.ok }}</td>
-                <td style="text-align: right; color: #ef4444;">{{ row.nok }}</td>
-                <td style="text-align: right; font-weight: 600;">{{ row.percent_ok }}%</td>
-                <td style="text-align: right;">{{ row.percent_nok }}%</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div style="max-height: 500px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <table class="stats-table" id="vehicle-stats-table" style="margin: 0;">
+            <thead style="position: sticky; top: 0; z-index: 10;">
+                <tr>
+                    <th style="cursor: pointer; user-select: none;" onclick="sortVehicleTable('Vehicle')">Véhicule <span id="sort-Vehicle">▼</span></th>
+                    <th style="text-align: right; cursor: pointer; user-select: none;" onclick="sortVehicleTable('total')">Total <span id="sort-total">▼</span></th>
+                    <th style="text-align: right; cursor: pointer; user-select: none;" onclick="sortVehicleTable('ok')">OK <span id="sort-ok">▼</span></th>
+                    <th style="text-align: right; cursor: pointer; user-select: none;" onclick="sortVehicleTable('nok')">NOK <span id="sort-nok">▼</span></th>
+                    <th style="text-align: right; cursor: pointer; user-select: none;" onclick="sortVehicleTable('percent_ok')">% Réussite <span id="sort-percent_ok">▼</span></th>
+                    <th style="text-align: right; cursor: pointer; user-select: none;" onclick="sortVehicleTable('percent_nok')">% Échec <span id="sort-percent_nok">▼</span></th>
+                </tr>
+            </thead>
+            <tbody id="vehicle-stats-tbody">
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Boutons de pagination -->
+    <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.75rem;">
+        <button id="vehicle-prev-btn" class="stats-selector" style="padding: 0.5rem 1rem; cursor: pointer;" onclick="prevVehiclePage()">← Précédent</button>
+        <span id="vehicle-page-info" style="padding: 0.5rem; font-size: 0.85rem; color: #64748b;"></span>
+        <button id="vehicle-next-btn" class="stats-selector" style="padding: 0.5rem 1rem; cursor: pointer;" onclick="nextVehiclePage()">Suivant →</button>
+    </div>
+
+    <script>
+    // Gestion du tri et de la pagination pour le tableau "Taux de réussite/échec"
+    const vehicleData = {{ vehicle_stats | tojson }};
+    let vehicleSortColumn = 'percent_ok';
+    let vehicleSortAsc = false;
+    let vehicleCurrentPage = 1;
+    let vehicleRowsPerPage = 50;
+
+    function sortVehicleTable(column) {
+        if (vehicleSortColumn === column) {
+            vehicleSortAsc = !vehicleSortAsc;
+        } else {
+            vehicleSortColumn = column;
+            vehicleSortAsc = column === 'Vehicle';
+        }
+
+        vehicleData.sort((a, b) => {
+            let valA = a[column];
+            let valB = b[column];
+
+            if (column !== 'Vehicle') {
+                valA = parseFloat(valA);
+                valB = parseFloat(valB);
+            }
+
+            if (valA < valB) return vehicleSortAsc ? -1 : 1;
+            if (valA > valB) return vehicleSortAsc ? 1 : -1;
+            return 0;
+        });
+
+        updateVehicleSortIndicators();
+        vehicleCurrentPage = 1;
+        renderVehicleTable();
+    }
+
+    function updateVehicleSortIndicators() {
+        const indicators = ['Vehicle', 'total', 'ok', 'nok', 'percent_ok', 'percent_nok'];
+        indicators.forEach(col => {
+            const el = document.getElementById(`sort-${col}`);
+            if (!el) return;
+            if (vehicleSortColumn === col) {
+                el.textContent = vehicleSortAsc ? '▲' : '▼';
+            } else {
+                el.textContent = '▼';
+            }
+        });
+    }
+
+    function updateVehicleTablePagination() {
+        const selector = document.getElementById('vehicle-rows-per-page');
+        vehicleRowsPerPage = selector.value === 'all' ? vehicleData.length : parseInt(selector.value);
+        vehicleCurrentPage = 1;
+        renderVehicleTable();
+    }
+
+    function renderVehicleTable() {
+        const tbody = document.getElementById('vehicle-stats-tbody');
+        const startIdx = (vehicleCurrentPage - 1) * vehicleRowsPerPage;
+        const endIdx = vehicleRowsPerPage === vehicleData.length ? vehicleData.length : Math.min(startIdx + vehicleRowsPerPage, vehicleData.length);
+
+        let html = '';
+        for (let i = startIdx; i < endIdx; i++) {
+            const row = vehicleData[i];
+            html += `<tr>
+                <td style="font-weight: 600;">${row.Vehicle}</td>
+                <td style="text-align: right;">${row.total}</td>
+                <td style="text-align: right; color: #10b981;">${row.ok}</td>
+                <td style="text-align: right; color: #ef4444;">${row.nok}</td>
+                <td style="text-align: right; font-weight: 600;">${row.percent_ok}%</td>
+                <td style="text-align: right;">${row.percent_nok}%</td>
+            </tr>`;
+        }
+        tbody.innerHTML = html;
+
+        const totalPages = Math.ceil(vehicleData.length / vehicleRowsPerPage);
+        document.getElementById('vehicle-range-info').textContent = `Affichage ${startIdx + 1}-${endIdx} sur ${vehicleData.length}`;
+        document.getElementById('vehicle-page-info').textContent = `Page ${vehicleCurrentPage} / ${totalPages}`;
+
+        document.getElementById('vehicle-prev-btn').disabled = vehicleCurrentPage === 1;
+        document.getElementById('vehicle-next-btn').disabled = vehicleCurrentPage >= totalPages;
+    }
+
+    function prevVehiclePage() {
+        if (vehicleCurrentPage > 1) {
+            vehicleCurrentPage--;
+            renderVehicleTable();
+        }
+    }
+
+    function nextVehiclePage() {
+        const totalPages = Math.ceil(vehicleData.length / vehicleRowsPerPage);
+        if (vehicleCurrentPage < totalPages) {
+            vehicleCurrentPage++;
+            renderVehicleTable();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        sortVehicleTable('percent_ok');
+    });
+    </script>
 
     <!-- Graphique à barres pour le taux de réussite -->
     <div style="margin-top: 2rem; padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px;">
