@@ -93,16 +93,26 @@ async def get_sessions_stats(
     moments: str = Query(default=""),
 ):
     """
-    Retourne les statistiques globales des sessions (taux réussite, échecs)
+    Retourne les statistiques complètes des sessions (énergie, puissance, SOC, durées, etc.)
     """
     error_type_list = [e.strip() for e in error_types.split(",") if e.strip()] if error_types else []
     moment_list = [m.strip() for m in moments.split(",") if m.strip()] if moments else []
 
     where_clause, params = _build_conditions(sites, date_debut, date_fin)
-    
+
+    # Récupération complète des données avec toutes les colonnes nécessaires
     sql = f"""
         SELECT
             Site,
+            PDC,
+            `Datetime start`,
+            `Datetime end`,
+            `Energy (Kwh)`,
+            `Mean Power (Kw)`,
+            `Max Power (Kw)`,
+            `SOC Start`,
+            `SOC End`,
+            `MAC Address`,
             `State of charge(0:good, 1:error)` as state,
             type_erreur,
             moment
@@ -111,62 +121,189 @@ async def get_sessions_stats(
     """
 
     df = query_df(sql, params)
-    
+
     if df.empty:
         return templates.TemplateResponse(
             "partials/sessions_stats.html",
             {
                 "request": request,
-                "total": 0,
-                "ok": 0,
-                "nok": 0,
-                "taux_reussite": 0,
-                "taux_echec": 0,
-                "stats_par_site": [],
+                "no_data": True,
             }
         )
 
+    # Conversion des types
+    for col in ["Datetime start", "Datetime end"]:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce")
+
+    for col in ["Energy (Kwh)", "Mean Power (Kw)", "Max Power (Kw)", "SOC Start", "SOC End"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # Déterminer is_ok
+    df["is_ok_raw"] = pd.to_numeric(df["state"], errors="coerce").fillna(0).astype(int).eq(0)
+
+    # Filtrage par type d'erreur et moment
     df = _apply_status_filters(df, error_type_list, moment_list)
 
-    total = len(df)
-    ok = int(df["is_ok_filt"].sum())
-    nok = total - ok
-    taux_reussite = round(ok / total * 100, 1) if total else 0
-    taux_echec = round(nok / total * 100, 1) if total else 0
+    # Séparer OK et NOK
+    ok_mask = df["is_ok_filt"]
+    nok_mask = ~df["is_ok_filt"]
 
-    # Stats par site
-    stats_site = (
-        df.groupby("Site")
-        .agg(
-            total=("is_ok_filt", "count"),
-            ok=("is_ok_filt", "sum"),
+    ok_df = df[ok_mask].copy()
+    nok_df = df[nok_mask].copy()
+
+    # === STATISTIQUES D'ÉNERGIE ===
+    energy_all = pd.to_numeric(df.get("Energy (Kwh)", pd.Series(dtype=float)), errors="coerce")
+    e_total_all = round(float(energy_all.sum(skipna=True)), 3) if energy_all.notna().any() else 0
+
+    # Pour moyenne et max : utiliser uniquement les charges OK
+    energy_ok = pd.to_numeric(ok_df.get("Energy (Kwh)", pd.Series(dtype=float)), errors="coerce")
+    e_mean = round(float(energy_ok.mean(skipna=True)), 3) if energy_ok.notna().any() else 0
+    e_max = round(float(energy_ok.max(skipna=True)), 3) if energy_ok.notna().any() else 0
+
+    # === STATISTIQUES DE PUISSANCE MOYENNE ===
+    pmean_ok = pd.to_numeric(ok_df.get("Mean Power (Kw)", pd.Series(dtype=float)), errors="coerce")
+    pm_mean = round(float(pmean_ok.mean(skipna=True)), 3) if pmean_ok.notna().any() else 0
+    pm_max = round(float(pmean_ok.max(skipna=True)), 3) if pmean_ok.notna().any() else 0
+
+    # === STATISTIQUES DE PUISSANCE MAXIMALE ===
+    pmax_ok = pd.to_numeric(ok_df.get("Max Power (Kw)", pd.Series(dtype=float)), errors="coerce")
+    px_mean = round(float(pmax_ok.mean(skipna=True)), 3) if pmax_ok.notna().any() else 0
+    px_max = round(float(pmax_ok.max(skipna=True)), 3) if pmax_ok.notna().any() else 0
+
+    # === STATISTIQUES SOC ===
+    soc_start = pd.to_numeric(ok_df.get("SOC Start", pd.Series(dtype=float)), errors="coerce")
+    soc_end = pd.to_numeric(ok_df.get("SOC End", pd.Series(dtype=float)), errors="coerce")
+    soc_start_mean = round(float(soc_start.mean(skipna=True)), 2) if soc_start.notna().any() else 0
+    soc_end_mean = round(float(soc_end.mean(skipna=True)), 2) if soc_end.notna().any() else 0
+
+    if soc_start.notna().any() and soc_end.notna().any():
+        soc_gain_mean = round(float((soc_end - soc_start).mean(skipna=True)), 2)
+    else:
+        soc_gain_mean = 0
+
+    # === DURÉES DE CHARGE ===
+    dt_start = pd.to_datetime(ok_df.get("Datetime start"), errors="coerce")
+    dt_end = pd.to_datetime(ok_df.get("Datetime end"), errors="coerce")
+    durations = (dt_end - dt_start).dt.total_seconds() / 60  # minutes
+    dur_mean = round(float(durations.mean(skipna=True)), 1) if durations.notna().any() else 0
+
+    # === CHARGES PAR SITE ===
+    if not ok_df.empty:
+        ok_df["day"] = pd.to_datetime(ok_df["Datetime start"]).dt.date
+        charges_by_site_day = (
+            ok_df.groupby(["Site", "day"])
+            .size()
+            .reset_index(name="Nb")
         )
-        .reset_index()
-    )
-    stats_site["nok"] = stats_site["total"] - stats_site["ok"]
-    stats_site["taux_ok"] = np.where(
-        stats_site["total"] > 0,
-        (stats_site["ok"] / stats_site["total"] * 100).round(1),
-        0
-    )
-    
-    # Top 10 par volume
-    top_sites = stats_site.sort_values("total", ascending=False).head(10)
-    
-    # Top 10 par échecs
-    top_echecs = stats_site.sort_values("nok", ascending=False).head(10)
-    
+
+        # Statistiques par jour
+        daily_stats = charges_by_site_day.groupby("day")["Nb"].sum().reset_index()
+        nb_days = len(daily_stats)
+        mean_day = round(float(daily_stats["Nb"].mean()), 2) if nb_days else 0
+        med_day = round(float(daily_stats["Nb"].median()), 2) if nb_days else 0
+
+        # Max par jour
+        if not charges_by_site_day.empty:
+            max_row = charges_by_site_day.loc[charges_by_site_day["Nb"].idxmax()]
+            max_day_site = str(max_row["Site"])
+            max_day_date = str(max_row["day"])
+            max_day_nb = int(max_row["Nb"])
+        else:
+            max_day_site = "—"
+            max_day_date = "—"
+            max_day_nb = 0
+    else:
+        nb_days = 0
+        mean_day = 0
+        med_day = 0
+        max_day_site = "—"
+        max_day_date = "—"
+        max_day_nb = 0
+
+    # === DURÉES DE FONCTIONNEMENT PAR SITE ===
+    if not ok_df.empty and "Datetime start" in ok_df.columns and "Datetime end" in ok_df.columns:
+        dur_df = ok_df[["Site", "PDC", "Datetime start", "Datetime end"]].copy()
+        dur_df = dur_df.dropna(subset=["Datetime start", "Datetime end"])
+        dur_df["dur_min"] = (
+            pd.to_datetime(dur_df["Datetime end"]) - pd.to_datetime(dur_df["Datetime start"])
+        ).dt.total_seconds() / 60
+
+        by_site_dur = (
+            dur_df.groupby("Site")["dur_min"]
+            .sum()
+            .reset_index()
+            .assign(Heures=lambda d: (d["dur_min"] / 60).round(1))
+            .sort_values("Heures", ascending=False)
+        )
+        durations_by_site = by_site_dur[["Site", "Heures"]].to_dict("records")
+
+        by_pdc_dur = (
+            dur_df.groupby(["Site", "PDC"])["dur_min"]
+            .sum()
+            .reset_index()
+            .assign(Heures=lambda d: (d["dur_min"] / 60).round(1))
+        )
+        durations_by_pdc_raw = by_pdc_dur.to_dict("records")
+    else:
+        durations_by_site = []
+        durations_by_pdc_raw = []
+
+    # Grouper par site pour le sélecteur
+    durations_by_site_dict = {}
+    for row in durations_by_pdc_raw:
+        site = row["Site"]
+        if site not in durations_by_site_dict:
+            durations_by_site_dict[site] = []
+        durations_by_site_dict[site].append({
+            "PDC": row["PDC"],
+            "Heures": row["Heures"]
+        })
+
+    # Trier les PDC par durée décroissante dans chaque site
+    for site in durations_by_site_dict:
+        durations_by_site_dict[site] = sorted(
+            durations_by_site_dict[site],
+            key=lambda x: x["Heures"],
+            reverse=False  # Tri croissant pour avoir les plus faibles en bas
+        )
+
     return templates.TemplateResponse(
         "partials/sessions_stats.html",
         {
             "request": request,
-            "total": total,
-            "ok": ok,
-            "nok": nok,
-            "taux_reussite": taux_reussite,
-            "taux_echec": taux_echec,
-            "top_sites": top_sites.to_dict("records"),
-            "top_echecs": top_echecs.to_dict("records"),
+            "no_data": False,
+            "total_charges": len(df),
+            "total_ok": len(ok_df),
+            "total_nok": len(nok_df),
+            # Énergie
+            "e_total_all": e_total_all,
+            "e_mean": e_mean,
+            "e_max": e_max,
+            # Puissance moyenne
+            "pm_mean": pm_mean,
+            "pm_max": pm_max,
+            # Puissance maximale
+            "px_mean": px_mean,
+            "px_max": px_max,
+            # SOC
+            "soc_start_mean": soc_start_mean,
+            "soc_end_mean": soc_end_mean,
+            "soc_gain_mean": soc_gain_mean,
+            # Durées
+            "dur_mean": dur_mean,
+            # Charges par jour
+            "nb_days": nb_days,
+            "mean_day": mean_day,
+            "med_day": med_day,
+            "max_day_site": max_day_site,
+            "max_day_date": max_day_date,
+            "max_day_nb": max_day_nb,
+            # Durées de fonctionnement
+            "durations_by_site": durations_by_site,
+            "durations_by_site_dict": durations_by_site_dict,
+            "site_options_dur": list(durations_by_site_dict.keys()),
         }
     )
 

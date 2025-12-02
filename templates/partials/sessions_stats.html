@@ -1,68 +1,310 @@
-<!-- Fragment: Stats sessions -->
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-value">{{ total }}</div>
-        <div class="stat-label">Sessions totales</div>
+<!-- Fragment: Statistiques complètes -->
+{% if no_data %}
+<div class="empty-state">
+    <div class="empty-icon">📊</div>
+    <div>Aucune donnée pour cette période</div>
+</div>
+{% else %}
+
+<style>
+.stats-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 1.5rem;
+}
+.stats-kpi-card {
+    background: #0f172a;
+    border: 1px solid #1f2937;
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.15);
+}
+.stats-kpi-title {
+    font-size: 13px;
+    color: #cbd5e1;
+    margin: 0 0 6px 0;
+}
+.stats-kpi-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0;
+}
+.stats-kpi-sub {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+.stats-kpi-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    margin-left: 6px;
+    background: #111827;
+    border: 1px solid #334155;
+    color: #93c5fd;
+}
+.stats-section-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin: 24px 0 12px 0;
+    color: #1e293b;
+}
+.stats-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+    margin: 1.5rem 0;
+}
+.stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+}
+.stats-table th {
+    background: #f8fafc;
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: #64748b;
+    border-bottom: 2px solid #e2e8f0;
+}
+.stats-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+.stats-table tr:hover {
+    background: #fafbfc;
+}
+.stats-selector {
+    margin: 1rem 0;
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: white;
+}
+</style>
+
+<h3 style="font-size: 1.25rem; margin-bottom: 1rem; color: #1e293b;">📊 Statistiques générales</h3>
+
+<!-- Résumé global -->
+<div class="stats-kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 2rem;">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Total charges</div>
+        <div class="stats-kpi-value" style="color: #3b82f6;">{{ total_charges }}</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-value" style="color: #10b981;">{{ ok }}</div>
-        <div class="stat-label">Réussies</div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Charges OK</div>
+        <div class="stats-kpi-value" style="color: #10b981;">{{ total_ok }}</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-value" style="color: #ef4444;">{{ nok }}</div>
-        <div class="stat-label">Échecs</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value" style="color: #3b82f6;">{{ taux_reussite }}%</div>
-        <div class="stat-label">Taux de réussite</div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Charges NOK</div>
+        <div class="stats-kpi-value" style="color: #ef4444;">{{ total_nok }}</div>
     </div>
 </div>
 
-{% if top_sites %}
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
-    <!-- Top sites par volume -->
-    <div>
-        <h4 style="font-size: 0.95rem; color: #1e293b; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e2e8f0;">
-            🏆 Top 10 Sites - Volume de charges
-        </h4>
-        <div class="sites-ranking">
-            {% for site in top_sites %}
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #f1f5f9;">
-                <span style="font-weight: 500; color: #374151;">{{ site.Site }}</span>
-                <div style="display: flex; gap: 1rem; align-items: center;">
-                    <span style="font-size: 0.85rem; color: #64748b;">{{ site.total }} sessions</span>
-                    <span style="font-weight: 600; color: {% if site.taux_ok >= 90 %}#10b981{% elif site.taux_ok >= 70 %}#f59e0b{% else %}#ef4444{% endif %};">
-                        {{ site.taux_ok }}%
-                    </span>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+<div class="stats-divider"></div>
+
+<!-- Énergie -->
+<h4 class="stats-section-title">
+    ⚡ Énergie
+    <span class="stats-kpi-tag">Total : tous statuts</span>
+    <span class="stats-kpi-tag">Moy./Max : OK only</span>
+</h4>
+<div class="stats-kpi-grid">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Total (kWh)</div>
+        <div class="stats-kpi-value">{{ e_total_all }}</div>
+        <div class="stats-kpi-sub">Tous statuts</div>
     </div>
-    
-    <!-- Top sites par échecs -->
-    <div>
-        <h4 style="font-size: 0.95rem; color: #1e293b; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e2e8f0;">
-            ⚠️ Top 10 Sites - Nombre d'échecs
-        </h4>
-        <div class="sites-ranking">
-            {% for site in top_echecs %}
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #f1f5f9;">
-                <span style="font-weight: 500; color: #374151;">{{ site.Site }}</span>
-                <div style="display: flex; gap: 1rem; align-items: center;">
-                    <span style="font-size: 0.85rem; color: #ef4444; font-weight: 600;">{{ site.nok }} échecs</span>
-                    <span style="font-size: 0.8rem; color: #94a3b8;">/ {{ site.total }}</span>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Moyenne (kWh)</div>
+        <div class="stats-kpi-value">{{ e_mean }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Max (kWh)</div>
+        <div class="stats-kpi-value">{{ e_max }}</div>
+    </div>
+</div>
+
+<div class="stats-divider"></div>
+
+<!-- Puissance moyenne -->
+<h4 class="stats-section-title">
+    🔌 Puissance moyenne (kW)
+    <span class="stats-kpi-tag">OK only</span>
+</h4>
+<div class="stats-kpi-grid" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Moyenne (kW)</div>
+        <div class="stats-kpi-value">{{ pm_mean }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Max (kW)</div>
+        <div class="stats-kpi-value">{{ pm_max }}</div>
+    </div>
+</div>
+
+<div class="stats-divider"></div>
+
+<!-- Puissance maximale -->
+<h4 class="stats-section-title">
+    🚀 Puissance maximale (kW)
+    <span class="stats-kpi-tag">OK only</span>
+</h4>
+<div class="stats-kpi-grid" style="grid-template-columns: repeat(2, 1fr);">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Moyenne (kW)</div>
+        <div class="stats-kpi-value">{{ px_mean }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Max (kW)</div>
+        <div class="stats-kpi-value">{{ px_max }}</div>
+    </div>
+</div>
+
+<div class="stats-divider"></div>
+
+<!-- SOC -->
+<h4 class="stats-section-title">
+    🔋 SOC (State of Charge)
+    <span class="stats-kpi-tag">OK only</span>
+</h4>
+<div class="stats-kpi-grid">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">SOC début moyen (%)</div>
+        <div class="stats-kpi-value">{{ soc_start_mean }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">SOC fin moyen (%)</div>
+        <div class="stats-kpi-value">{{ soc_end_mean }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">SOC moyen de recharge (%)</div>
+        <div class="stats-kpi-value">{{ soc_gain_mean }}</div>
+    </div>
+</div>
+
+<div class="stats-divider"></div>
+
+<!-- Durées de charge -->
+<h4 class="stats-section-title">
+    ⏱️ Durées de charge
+    <span class="stats-kpi-tag">OK only</span>
+</h4>
+<div class="stats-kpi-grid" style="grid-template-columns: 1fr;">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Moyenne (minutes)</div>
+        <div class="stats-kpi-value">{{ dur_mean }}</div>
+    </div>
+</div>
+
+<div class="stats-divider"></div>
+
+<!-- Charges par jour -->
+<h4 class="stats-section-title">
+    📅 Charges par jour
+    <span class="stats-kpi-tag">OK only</span>
+</h4>
+<div class="stats-kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Jours couverts</div>
+        <div class="stats-kpi-value">{{ nb_days }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Moyenne / jour (OK)</div>
+        <div class="stats-kpi-value">{{ mean_day }}</div>
+    </div>
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Médiane / jour (OK)</div>
+        <div class="stats-kpi-value">{{ med_day }}</div>
+    </div>
+</div>
+
+{% if max_day_site != "—" %}
+<div class="stats-kpi-grid" style="grid-template-columns: 1fr; margin-top: 12px;">
+    <div class="stats-kpi-card">
+        <div class="stats-kpi-title">Max / jour (OK)</div>
+        <div class="stats-kpi-value">{{ max_day_nb }}</div>
+        <div class="stats-kpi-sub">{{ max_day_date }} — site: {{ max_day_site }}</div>
     </div>
 </div>
 {% endif %}
 
-{% if total == 0 %}
-<div class="empty-state">
-    <div class="icon">📊</div>
-    <div class="message">Aucune donnée pour cette période</div>
+<div class="stats-divider"></div>
+
+<!-- Durées de fonctionnement -->
+<h4 class="stats-section-title">⏱️ Durée de fonctionnement totale (heures)</h4>
+
+{% if durations_by_site %}
+<h5 style="font-size: 0.95rem; font-weight: 600; margin: 1rem 0 0.5rem; color: #64748b;">Par Site</h5>
+<table class="stats-table">
+    <thead>
+        <tr>
+            <th>Site</th>
+            <th style="text-align: right;">Heures</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in durations_by_site %}
+        <tr>
+            <td>{{ row.Site }}</td>
+            <td style="text-align: right; font-weight: 600;">{{ row.Heures }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p style="color: #94a3b8; font-style: italic;">Aucune donnée de durée disponible.</p>
+{% endif %}
+
+{% if site_options_dur %}
+<h5 style="font-size: 0.95rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #64748b;">Par PDC</h5>
+<div>
+    <label for="site-selector" style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem; display: block;">🏢 Sélectionner un site :</label>
+    <select id="site-selector" class="stats-selector" onchange="updatePDCTable()">
+        {% for site in site_options_dur %}
+        <option value="{{ site }}" {% if loop.index == 1 %}selected{% endif %}>{{ site }}</option>
+        {% endfor %}
+    </select>
 </div>
+
+<div id="pdc-table-container">
+    <!-- Le tableau sera inséré ici par JavaScript -->
+</div>
+
+<script>
+// Données des durées par site/PDC
+const durationsBySite = {{ durations_by_site_dict | tojson }};
+
+function updatePDCTable() {
+    const selector = document.getElementById('site-selector');
+    const selectedSite = selector.value;
+    const container = document.getElementById('pdc-table-container');
+
+    if (!durationsBySite[selectedSite]) {
+        container.innerHTML = '<p style="color: #94a3b8; font-style: italic; margin-top: 1rem;">Aucune donnée pour ce site.</p>';
+        return;
+    }
+
+    const data = durationsBySite[selectedSite];
+
+    let html = '<table class="stats-table" style="margin-top: 1rem;"><thead><tr><th>PDC</th><th style="text-align: right;">Heures</th></tr></thead><tbody>';
+
+    data.forEach(row => {
+        html += `<tr><td>${row.PDC}</td><td style="text-align: right; font-weight: 600;">${row.Heures}</td></tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// Initialiser le tableau au chargement
+updatePDCTable();
+</script>
+{% endif %}
+
 {% endif %}
