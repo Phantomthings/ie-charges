@@ -1,8 +1,3 @@
-"""
-Router pour les sessions de charge
-Endpoint: GET /api/sessions/stats
-"""
-
 from fastapi import APIRouter, Request, Query
 from fastapi.templating import Jinja2Templates
 from datetime import date
@@ -22,16 +17,16 @@ def _build_conditions(sites: str, date_debut: date | None, date_fin: date | None
     params = {}
 
     if date_debut:
-        conditions.append("k.`Datetime start` >= :date_debut")
+        conditions.append("`Datetime start` >= :date_debut")
         params["date_debut"] = str(date_debut)
     if date_fin:
-        conditions.append("k.`Datetime start` < DATE_ADD(:date_fin, INTERVAL 1 DAY)")
+        conditions.append("`Datetime start` < DATE_ADD(:date_fin, INTERVAL 1 DAY)")
         params["date_fin"] = str(date_fin)
     if sites:
         site_list = [s.strip() for s in sites.split(",") if s.strip()]
         if site_list:
             placeholders = ",".join([f":site_{i}" for i in range(len(site_list))])
-            conditions.append(f"k.Site IN ({placeholders})")
+            conditions.append(f"Site IN ({placeholders})")
             for i, s in enumerate(site_list):
                 params[f"site_{i}"] = s
 
@@ -39,12 +34,7 @@ def _build_conditions(sites: str, date_debut: date | None, date_fin: date | None
 
 
 def _apply_status_filters(df: pd.DataFrame, error_type_list: list[str], moment_list: list[str]) -> pd.DataFrame:
-    if "is_ok_raw" in df.columns:
-        base_ok = df["is_ok_raw"].astype(bool)
-    else:
-        base_ok = pd.to_numeric(df.get("state"), errors="coerce").fillna(0).astype(int).eq(0)
-
-    df["is_ok"] = base_ok
+    df["is_ok"] = pd.to_numeric(df["state"], errors="coerce").fillna(0).astype(int).eq(0)
     mask_nok = ~df["is_ok"]
     mask_type = (
         df["type_erreur"].isin(error_type_list)
@@ -107,12 +97,14 @@ async def get_sessions_stats(
 
     # Récupération complète des données avec toutes les colonnes nécessaires
     if table_exists("kpi_charges_mac"):
-        vehicle_select = "cm.Vehicle"
-        is_ok_select = ", cm.is_ok AS is_ok_mac"
-        join_clause = "LEFT JOIN kpi_charges_mac cm ON k.`MAC Address` = cm.`MAC Address`"
+        vehicle_select = "c.Vehicle"
+        join_clause = """
+            LEFT JOIN kpi_charges_mac c 
+                ON k.`MAC Address` = c.`MAC Address`
+                AND k.`Datetime start` = c.`Datetime start`
+        """
     else:
         vehicle_select = "NULL AS Vehicle"
-        is_ok_select = ""
         join_clause = ""
 
     sql = f"""
@@ -131,7 +123,6 @@ async def get_sessions_stats(
             k.type_erreur,
             k.moment,
             {vehicle_select}
-            {is_ok_select}
         FROM kpi_sessions k
         {join_clause}
         WHERE {where_clause}
@@ -157,14 +148,8 @@ async def get_sessions_stats(
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # Déterminer is_ok (priorité à kpi_charges_mac s'il est présent)
-    state_ok = pd.to_numeric(df.get("state"), errors="coerce").fillna(0).astype(int).eq(0)
-
-    if "is_ok_mac" in df.columns:
-        mac_ok = pd.to_numeric(df.get("is_ok_mac"), errors="coerce")
-        df["is_ok_raw"] = np.where(mac_ok.notna(), mac_ok.astype(int).eq(1), state_ok)
-    else:
-        df["is_ok_raw"] = state_ok
+    # Déterminer is_ok
+    df["is_ok_raw"] = pd.to_numeric(df["state"], errors="coerce").fillna(0).astype(int).eq(0)
 
     # Filtrage par type d'erreur et moment
     df = _apply_status_filters(df, error_type_list, moment_list)
