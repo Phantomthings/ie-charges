@@ -22,16 +22,16 @@ def _build_conditions(sites: str, date_debut: date | None, date_fin: date | None
     params = {}
 
     if date_debut:
-        conditions.append("`Datetime start` >= :date_debut")
+        conditions.append("k.`Datetime start` >= :date_debut")
         params["date_debut"] = str(date_debut)
     if date_fin:
-        conditions.append("`Datetime start` < DATE_ADD(:date_fin, INTERVAL 1 DAY)")
+        conditions.append("k.`Datetime start` < DATE_ADD(:date_fin, INTERVAL 1 DAY)")
         params["date_fin"] = str(date_fin)
     if sites:
         site_list = [s.strip() for s in sites.split(",") if s.strip()]
         if site_list:
             placeholders = ",".join([f":site_{i}" for i in range(len(site_list))])
-            conditions.append(f"Site IN ({placeholders})")
+            conditions.append(f"k.Site IN ({placeholders})")
             for i, s in enumerate(site_list):
                 params[f"site_{i}"] = s
 
