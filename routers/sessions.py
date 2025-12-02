@@ -29,18 +29,13 @@ def _get_vehicle_strategy():
         return _vehicle_strategy_cache
 
     if table_exists("kpi_charges_mac"):
-        # Vehicle existe dans kpi_charges_mac, faire un LEFT JOIN
-        # Stratégies multiples pour maximiser les chances de match :
-        # 1. TRIM sur MAC Address pour gérer les espaces
-        # 2. ABS(TIMESTAMPDIFF) <= 5 pour gérer les différences de précision (jusqu'à 5 secondes)
-        # Note : Si cela ne fonctionne pas, essayez de remplacer par :
-        #   DATE_FORMAT(k.`Datetime start`, '%Y-%m-%d %H:%i:%s') = DATE_FORMAT(c.`Datetime start`, '%Y-%m-%d %H:%i:%s')
+        # Vehicle existe dans kpi_charges_mac, faire un LEFT JOIN sur ID
+        # JOIN sur ID est plus fiable que MAC Address + Datetime
         _vehicle_strategy_cache = (
             "c.Vehicle",
             """
             LEFT JOIN kpi_charges_mac c
-                ON TRIM(UPPER(k.`MAC Address`)) = TRIM(UPPER(c.`MAC Address`))
-                AND ABS(TIMESTAMPDIFF(SECOND, k.`Datetime start`, c.`Datetime start`)) <= 5
+                ON k.ID = c.ID
         """
         )
     else:
@@ -142,6 +137,7 @@ async def get_sessions_stats(
 
     sql = f"""
         SELECT
+            k.ID,
             k.Site,
             k.PDC,
             k.`Datetime start`,
