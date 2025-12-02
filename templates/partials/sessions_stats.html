@@ -569,7 +569,35 @@ updatePDCDisplay();
     </div>
 </div>
 {% else %}
-<p style="color: #94a3b8; font-style: italic;">Aucune donnée de véhicule disponible (ou tous les véhicules sont "Unknown").</p>
+<div style="padding: 1rem; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; margin-top: 1rem;">
+    <p style="color: #92400e; font-weight: 600; margin: 0 0 0.5rem 0;">⚠️ Aucune donnée de véhicule disponible</p>
+    <p style="color: #78350f; font-size: 0.85rem; margin: 0;">
+        {% if vehicle_debug_info %}
+        Diagnostic :
+        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+            <li>Total de sessions : {{ vehicle_debug_info.total_rows }}</li>
+            <li>Colonne Vehicle présente : {{ "✅ Oui" if vehicle_debug_info.has_column else "❌ Non" }}</li>
+            {% if vehicle_debug_info.has_column %}
+            <li>Valeurs non-NULL : {{ vehicle_debug_info.non_null_count }} / {{ vehicle_debug_info.total_rows }}</li>
+            <li>Valeurs "Unknown" : {{ vehicle_debug_info.unknown_count }}</li>
+            <li>Valeurs valides : {{ vehicle_debug_info.valid_count }}</li>
+            {% endif %}
+        </ul>
+        {% if vehicle_debug_info.has_column and vehicle_debug_info.valid_count == 0 %}
+        <br>
+        <strong>💡 Suggestion :</strong> Tous les véhicules sont marqués comme "Unknown".
+        Vérifiez que la table <code>kpi_charges_mac</code> contient bien des données de véhicules
+        et que le JOIN avec <code>kpi_sessions</code> fonctionne correctement (voir le fichier <code>diagnose_vehicle.sql</code>).
+        {% elif not vehicle_debug_info.has_column %}
+        <br>
+        <strong>💡 Suggestion :</strong> La colonne Vehicle n'existe pas dans les données sources.
+        Vérifiez que la table <code>kpi_charges_mac</code> existe et contient une colonne Vehicle.
+        {% endif %}
+        {% else %}
+        Tous les véhicules sont marqués comme "Unknown".
+        {% endif %}
+    </p>
+</div>
 {% endif %}
 
 {% endif %}

@@ -11,6 +11,55 @@ from routers.filters import MOMENT_ORDER
 router = APIRouter(tags=["sessions"])
 templates = Jinja2Templates(directory="templates")
 
+# Cache pour la stratégie de récupération des données Vehicle
+_vehicle_strategy_cache = None
+
+
+def _get_vehicle_strategy():
+    """
+    Détermine la stratégie optimale pour récupérer les données Vehicle.
+    Cette fonction est appelée une seule fois au premier accès et met en cache le résultat.
+
+    Returns:
+        tuple: (vehicle_select, join_clause) pour la requête SQL
+    """
+    global _vehicle_strategy_cache
+
+    if _vehicle_strategy_cache is not None:
+        return _vehicle_strategy_cache
+
+    # 1. Vérifier si kpi_sessions a directement la colonne Vehicle
+    try:
+        sample_sql = "SELECT * FROM kpi_sessions LIMIT 1"
+        sample_df = query_df(sample_sql)
+        has_vehicle_in_sessions = "Vehicle" in sample_df.columns if not sample_df.empty else False
+    except Exception:
+        has_vehicle_in_sessions = False
+
+    if has_vehicle_in_sessions:
+        # Vehicle existe directement dans kpi_sessions
+        _vehicle_strategy_cache = ("k.Vehicle", "")
+    elif table_exists("kpi_charges_mac"):
+        # Vehicle existe dans kpi_charges_mac, faire un LEFT JOIN
+        # Stratégies multiples pour maximiser les chances de match :
+        # 1. TRIM sur MAC Address pour gérer les espaces
+        # 2. ABS(TIMESTAMPDIFF) <= 5 pour gérer les différences de précision (jusqu'à 5 secondes)
+        # Note : Si cela ne fonctionne pas, essayez de remplacer par :
+        #   DATE_FORMAT(k.`Datetime start`, '%Y-%m-%d %H:%i:%s') = DATE_FORMAT(c.`Datetime start`, '%Y-%m-%d %H:%i:%s')
+        _vehicle_strategy_cache = (
+            "c.Vehicle",
+            """
+            LEFT JOIN kpi_charges_mac c
+                ON TRIM(UPPER(k.`MAC Address`)) = TRIM(UPPER(c.`MAC Address`))
+                AND ABS(TIMESTAMPDIFF(SECOND, k.`Datetime start`, c.`Datetime start`)) <= 5
+        """
+        )
+    else:
+        # Aucune source de données Vehicle disponible
+        _vehicle_strategy_cache = ("NULL AS Vehicle", "")
+
+    return _vehicle_strategy_cache
+
 
 def _build_conditions(sites: str, date_debut: date | None, date_fin: date | None, table_alias: str | None = None):
     conditions = ["1=1"]
@@ -100,16 +149,7 @@ async def get_sessions_stats(
     where_clause, params = _build_conditions(sites, date_debut, date_fin, table_alias="k")
 
     # Récupération complète des données avec toutes les colonnes nécessaires
-    if table_exists("kpi_charges_mac"):
-        vehicle_select = "c.Vehicle"
-        join_clause = """
-            LEFT JOIN kpi_charges_mac c 
-                ON k.`MAC Address` = c.`MAC Address`
-                AND k.`Datetime start` = c.`Datetime start`
-        """
-    else:
-        vehicle_select = "NULL AS Vehicle"
-        join_clause = ""
+    vehicle_select, join_clause = _get_vehicle_strategy()
 
     sql = f"""
         SELECT
@@ -283,18 +323,34 @@ async def get_sessions_stats(
 
     # === STATISTIQUES PAR TYPE DE VÉHICULE ===
     vehicle_stats = []
+    vehicle_debug_info = {
+        "has_column": "Vehicle" in df.columns,
+        "total_rows": len(df),
+        "non_null_count": 0,
+        "valid_count": 0,
+        "unknown_count": 0,
+    }
+
     if "Vehicle" in df.columns and not df.empty:
         # Nettoyer les données Vehicle
         df_vehicle = df.copy()
         df_vehicle["Vehicle"] = df_vehicle["Vehicle"].astype(str).str.strip()
+
+        # Compter les non-NULL avant nettoyage
+        vehicle_debug_info["non_null_count"] = int(df_vehicle["Vehicle"].notna().sum())
+
         df_vehicle["Vehicle"] = df_vehicle["Vehicle"].replace(
             {"": "Unknown", "nan": "Unknown", "none": "Unknown", "NULL": "Unknown", "None": "Unknown"},
             regex=False
         )
         df_vehicle["Vehicle"] = df_vehicle["Vehicle"].fillna("Unknown")
 
+        # Compter les Unknown
+        vehicle_debug_info["unknown_count"] = int((df_vehicle["Vehicle"] == "Unknown").sum())
+
         # Exclure les véhicules inconnus
         df_vehicle = df_vehicle[df_vehicle["Vehicle"] != "Unknown"]
+        vehicle_debug_info["valid_count"] = len(df_vehicle)
 
         if not df_vehicle.empty:
             # Grouper par véhicule et calculer les statistiques
@@ -356,6 +412,7 @@ async def get_sessions_stats(
             "site_options_dur": list(durations_by_site_dict.keys()),
             # Statistiques par véhicule
             "vehicle_stats": vehicle_stats,
+            "vehicle_debug_info": vehicle_debug_info,
         }
     )
 
