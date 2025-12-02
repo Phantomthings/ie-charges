@@ -439,10 +439,10 @@ function updatePDCDisplay() {
     chartHtml += '</div>';
     chartContainer.innerHTML = chartHtml;
 
-    // Générer le tableau
+    // Générer le tableau (trié par durée décroissante)
     let tableHtml = '<table class="stats-table"><thead><tr><th>PDC</th><th style="text-align: right;">Heures</th></tr></thead><tbody>';
 
-    data.forEach(row => {
+    sortedData.forEach(row => {
         tableHtml += `<tr><td>${row.PDC}</td><td style="text-align: right; font-weight: 600;">${row.Heures}</td></tr>`;
     });
 
@@ -466,15 +466,6 @@ updatePDCDisplay();
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
         <div style="font-size: 0.85rem; color: #64748b;">
             <span id="vehicle-range-info">Affichage 1-50 sur {{ vehicle_stats|length }}</span>
-        </div>
-        <div>
-            <label for="vehicle-rows-per-page" style="font-size: 0.85rem; color: #64748b; margin-right: 0.5rem;">Lignes par page:</label>
-            <select id="vehicle-rows-per-page" class="stats-selector" style="width: auto; padding: 0.25rem 0.5rem;" onchange="updateVehicleTablePagination()">
-                <option value="25">25</option>
-                <option value="50" selected>50</option>
-                <option value="100">100</option>
-                <option value="all">Tout afficher</option>
-            </select>
         </div>
     </div>
 
@@ -506,10 +497,10 @@ updatePDCDisplay();
     <script>
     // Gestion du tri et de la pagination pour le tableau "Taux de réussite/échec"
     const vehicleData = {{ vehicle_stats | tojson }};
-    let vehicleSortColumn = 'percent_ok';
+    let vehicleSortColumn = '';
     let vehicleSortAsc = false;
     let vehicleCurrentPage = 1;
-    let vehicleRowsPerPage = 50;
+    const vehicleRowsPerPage = 50;
 
     function sortVehicleTable(column) {
         if (vehicleSortColumn === column) {
@@ -549,13 +540,6 @@ updatePDCDisplay();
                 el.textContent = '▼';
             }
         });
-    }
-
-    function updateVehicleTablePagination() {
-        const selector = document.getElementById('vehicle-rows-per-page');
-        vehicleRowsPerPage = selector.value === 'all' ? vehicleData.length : parseInt(selector.value);
-        vehicleCurrentPage = 1;
-        renderVehicleTable();
     }
 
     function renderVehicleTable() {

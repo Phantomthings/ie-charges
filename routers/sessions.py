@@ -303,8 +303,11 @@ async def get_sessions_stats(
         durations_by_site_dict[site] = sorted(
             durations_by_site_dict[site],
             key=lambda x: x["Heures"],
-            reverse=False  # Tri croissant pour avoir les plus faibles en bas
+            reverse=True
         )
+
+    # Conserver l'ordre des sites affichés dans le tableau principal
+    site_options_order = [row["Site"] for row in durations_by_site]
 
     # === STATISTIQUES PAR TYPE DE VÉHICULE ===
     vehicle_stats = []
@@ -352,9 +355,9 @@ async def get_sessions_stats(
             )
             vehicle_grouped["percent_nok"] = 100 - vehicle_grouped["percent_ok"]
 
-            # Trier par total décroissant puis par % réussite décroissant
+            # Trier par taux de réussite décroissant puis par volume décroissant
             vehicle_grouped = vehicle_grouped.sort_values(
-                ["total", "percent_ok"],
+                ["percent_ok", "total"],
                 ascending=[False, False]
             ).reset_index(drop=True)
 
@@ -394,7 +397,7 @@ async def get_sessions_stats(
             # Durées de fonctionnement
             "durations_by_site": durations_by_site,
             "durations_by_site_dict": durations_by_site_dict,
-            "site_options_dur": list(durations_by_site_dict.keys()),
+            "site_options_dur": site_options_order if site_options_order else list(durations_by_site_dict.keys()),
             # Statistiques par véhicule
             "vehicle_stats": vehicle_stats,
             "vehicle_debug_info": vehicle_debug_info,
