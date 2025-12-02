@@ -12,21 +12,25 @@ router = APIRouter(tags=["sessions"])
 templates = Jinja2Templates(directory="templates")
 
 
-def _build_conditions(sites: str, date_debut: date | None, date_fin: date | None):
+def _build_conditions(sites: str, date_debut: date | None, date_fin: date | None, table_alias: str | None = None):
     conditions = ["1=1"]
     params = {}
 
+    # Add table qualifier if provided
+    datetime_col = f"{table_alias}.`Datetime start`" if table_alias else "`Datetime start`"
+    site_col = f"{table_alias}.Site" if table_alias else "Site"
+
     if date_debut:
-        conditions.append("`Datetime start` >= :date_debut")
+        conditions.append(f"{datetime_col} >= :date_debut")
         params["date_debut"] = str(date_debut)
     if date_fin:
-        conditions.append("`Datetime start` < DATE_ADD(:date_fin, INTERVAL 1 DAY)")
+        conditions.append(f"{datetime_col} < DATE_ADD(:date_fin, INTERVAL 1 DAY)")
         params["date_fin"] = str(date_fin)
     if sites:
         site_list = [s.strip() for s in sites.split(",") if s.strip()]
         if site_list:
             placeholders = ",".join([f":site_{i}" for i in range(len(site_list))])
-            conditions.append(f"Site IN ({placeholders})")
+            conditions.append(f"{site_col} IN ({placeholders})")
             for i, s in enumerate(site_list):
                 params[f"site_{i}"] = s
 
@@ -93,7 +97,7 @@ async def get_sessions_stats(
     error_type_list = [e.strip() for e in error_types.split(",") if e.strip()] if error_types else []
     moment_list = [m.strip() for m in moments.split(",") if m.strip()] if moments else []
 
-    where_clause, params = _build_conditions(sites, date_debut, date_fin)
+    where_clause, params = _build_conditions(sites, date_debut, date_fin, table_alias="k")
 
     # Récupération complète des données avec toutes les colonnes nécessaires
     if table_exists("kpi_charges_mac"):
