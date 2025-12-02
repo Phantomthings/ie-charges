@@ -4,7 +4,7 @@ Connexion MySQL avec pool de connexions SQLAlchemy
 
 import os
 from datetime import date, timedelta
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.pool import QueuePool
 import pandas as pd
 
@@ -66,3 +66,9 @@ def query_df(sql: str, params: dict = None) -> pd.DataFrame:
     """Exécute une requête et retourne un DataFrame"""
     with engine.connect() as conn:
         return pd.read_sql(text(sql), conn, params=params)
+
+
+def table_exists(table_name: str) -> bool:
+    """Vérifie si une table est présente dans la base"""
+    inspector = inspect(engine)
+    return inspector.has_table(table_name)
