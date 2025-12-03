@@ -9,6 +9,17 @@ import numpy as np
 from db import query_df, table_exists
 from routers.filters import MOMENT_ORDER
 
+EVI_MOMENT = "EVI Status during error"
+EVI_CODE = "EVI Error Code"
+DS_PC = "Downstream Code PC"
+
+PHASE_MAP = {
+    "Avant charge": {"Init", "Lock Connector", "CableCheck"},
+    "Charge": {"Charge"},
+    "Fin de charge": {"Fin de charge"},
+    "Unknown": {"Unknown"},
+}
+
 router = APIRouter(tags=["sessions"])
 templates = Jinja2Templates(directory="templates")
 
@@ -106,6 +117,26 @@ def _map_moment_label(val: int) -> str:
         return "Charge"
     if v > 8:
         return "Fin de charge"
+    return "Unknown"
+
+
+def _map_phase_label(moment: str | int | float | None) -> str:
+    if pd.isna(moment):
+        return "Unknown"
+
+    if isinstance(moment, (list, tuple, set)):
+        for value in moment:
+            mapped = _map_phase_label(value)
+            if mapped != "Unknown":
+                return mapped
+        return "Unknown"
+
+    moment_str = str(moment)
+
+    for phase, moments in PHASE_MAP.items():
+        if moment_str in moments:
+            return phase
+
     return "Unknown"
 
 
@@ -771,6 +802,230 @@ async def get_sessions_projection(
             "site_options": site_options,
             "selected_sites": selected_sites,
             "hide_empty": hide_empty,
+        },
+    )
+
+
+@router.get("/sessions/error-analysis")
+async def get_error_analysis(
+    request: Request,
+    sites: str = Query(default=""),
+    date_debut: date = Query(default=None),
+    date_fin: date = Query(default=None),
+    error_types: str = Query(default=""),
+    moments: str = Query(default=""),
+):
+    error_type_list = [e.strip() for e in error_types.split(",") if e.strip()] if error_types else []
+    moment_list = [m.strip() for m in moments.split(",") if m.strip()] if moments else []
+
+    where_clause, params = _build_conditions(sites, date_debut, date_fin, table_alias="k")
+
+    sql = f"""
+        SELECT
+            k.Site,
+            k.`State of charge(0:good, 1:error)` as state,
+            k.type_erreur,
+            k.moment,
+            k.`{EVI_MOMENT}`,
+            k.`{EVI_CODE}`,
+            k.`{DS_PC}`
+        FROM kpi_sessions k
+        WHERE {where_clause}
+    """
+
+    df = query_df(sql, params)
+
+    if df.empty:
+        return templates.TemplateResponse(
+            "partials/error_analysis.html",
+            {"request": request, "no_data": True},
+        )
+
+    df["is_ok"] = pd.to_numeric(df["state"], errors="coerce").fillna(0).astype(int).eq(0)
+    df = _apply_status_filters(df, error_type_list, moment_list)
+    df["Site"] = df.get("Site", "").fillna("")
+
+    err = df[~df["is_ok_filt"]].copy()
+
+    if err.empty:
+        return templates.TemplateResponse(
+            "partials/error_analysis.html",
+            {"request": request, "no_errors": True},
+        )
+
+    evi_step = pd.to_numeric(err.get(EVI_MOMENT, pd.Series(np.nan, index=err.index)), errors="coerce")
+    evi_code = pd.to_numeric(err.get(EVI_CODE, pd.Series(np.nan, index=err.index)), errors="coerce").fillna(0).astype(int)
+    ds_pc = pd.to_numeric(err.get(DS_PC, pd.Series(np.nan, index=err.index)), errors="coerce").fillna(0).astype(int)
+    moment_raw = err.get("moment", pd.Series(None, index=err.index))
+
+    def resolve_moment_label(idx: int) -> str:
+        label = None
+        step_val = evi_step.loc[idx] if idx in evi_step.index else np.nan
+        raw_val = moment_raw.loc[idx] if idx in moment_raw.index else None
+
+        if pd.notna(step_val):
+            label = _map_moment_label(step_val)
+        if (not label or label == "Unknown") and isinstance(raw_val, str) and raw_val.strip():
+            label = raw_val.strip()
+        return label or "Unknown"
+
+    err["moment_label"] = [resolve_moment_label(i) for i in err.index]
+
+    sub_evi_mask = (ds_pc.eq(8192)) | (ds_pc.eq(0) & evi_code.ne(0))
+    sub_ds_mask = ds_pc.ne(0) & ds_pc.ne(8192)
+
+    sub_evi = err.loc[sub_evi_mask].copy()
+    sub_evi["step"] = evi_step.loc[sub_evi.index]
+    sub_evi["code"] = evi_code.loc[sub_evi.index]
+    sub_evi["type"] = "Erreur_EVI"
+
+    sub_ds = err.loc[sub_ds_mask].copy()
+    sub_ds["step"] = evi_step.loc[sub_ds.index]
+    sub_ds["code"] = ds_pc.loc[sub_ds.index]
+    sub_ds["type"] = "Erreur_DownStream"
+
+    all_err = pd.concat([sub_evi, sub_ds], ignore_index=True)
+
+    top_all: list[dict[str, Any]] = []
+    detail_all: list[dict[str, Any]] = []
+    if not all_err.empty:
+        tbl_all = (
+            all_err.groupby(["moment_label", "step", "code", "type"])
+            .size()
+            .reset_index(name="Occurrences")
+            .sort_values("Occurrences", ascending=False)
+        )
+
+        total_err = int(tbl_all["Occurrences"].sum()) or 1
+        tbl_all["percent"] = (tbl_all["Occurrences"] / total_err * 100).round(2)
+
+        top3_all = tbl_all.head(3)
+        top_all = top3_all.to_dict("records")
+
+        top_keys = top3_all[["moment_label", "step", "code", "type"]].to_records(index=False).tolist()
+        detail_all = (
+            all_err[all_err[["moment_label", "step", "code", "type"]].apply(tuple, axis=1).isin(top_keys)]
+            .groupby(["moment_label", "step", "code", "type", "Site"])
+            .size()
+            .reset_index(name="Occurrences")
+            .sort_values(["type", "moment_label", "step", "code", "Occurrences"], ascending=[True, True, True, True, False])
+            .to_dict("records")
+        )
+
+    top_evi: list[dict[str, Any]] = []
+    detail_evi: list[dict[str, Any]] = []
+    if not sub_evi.empty:
+        tbl_evi = (
+            sub_evi.groupby(["moment_label", "step", "code"])
+            .size()
+            .reset_index(name="Occurrences")
+            .sort_values("Occurrences", ascending=False)
+        )
+        total_evi = int(tbl_evi["Occurrences"].sum()) or 1
+        tbl_evi["percent"] = (tbl_evi["Occurrences"] / total_evi * 100).round(2)
+        top_evi = tbl_evi.head(3).to_dict("records")
+
+        top_keys_evi = tbl_evi.head(3)[["moment_label", "step", "code"]].to_records(index=False).tolist()
+        detail_evi = (
+            sub_evi[sub_evi[["moment_label", "step", "code"]].apply(tuple, axis=1).isin(top_keys_evi)]
+            .groupby(["moment_label", "step", "code", "Site"])
+            .size()
+            .reset_index(name="Occurrences")
+            .sort_values(["moment_label", "step", "code", "Occurrences"], ascending=[True, True, True, False])
+            .to_dict("records")
+        )
+
+    top_ds: list[dict[str, Any]] = []
+    detail_ds: list[dict[str, Any]] = []
+    if not sub_ds.empty:
+        tbl_ds = (
+            sub_ds.groupby(["moment_label", "step", "code"])
+            .size()
+            .reset_index(name="Occurrences")
+            .sort_values("Occurrences", ascending=False)
+        )
+        total_ds = int(tbl_ds["Occurrences"].sum()) or 1
+        tbl_ds["percent"] = (tbl_ds["Occurrences"] / total_ds * 100).round(2)
+        top_ds = tbl_ds.head(3).to_dict("records")
+
+        top_keys_ds = tbl_ds.head(3)[["moment_label", "step", "code"]].to_records(index=False).tolist()
+        detail_ds = (
+            sub_ds[sub_ds[["moment_label", "step", "code"]].apply(tuple, axis=1).isin(top_keys_ds)]
+            .groupby(["moment_label", "step", "code", "Site"])
+            .size()
+            .reset_index(name="Occurrences")
+            .sort_values(["moment_label", "step", "code", "Occurrences"], ascending=[True, True, True, False])
+            .to_dict("records")
+        )
+
+    by_site = (
+        df.groupby("Site", as_index=False)
+        .agg(Total_Charges=("is_ok_filt", "count"), Charges_OK=("is_ok_filt", "sum"))
+        .assign(Charges_NOK=lambda d: d["Total_Charges"] - d["Charges_OK"])
+    )
+
+    err_phase = err.copy()
+    err_phase["Phase"] = err_phase["moment_label"].map(_map_phase_label)
+
+    err_by_phase = (
+        err_phase.groupby(["Site", "Phase"])
+        .size()
+        .unstack("Phase", fill_value=0)
+        .reset_index()
+    )
+
+    df_final = by_site.merge(err_by_phase, on="Site", how="left").fillna(0)
+
+    for col in ["Avant charge", "Charge", "Fin de charge", "Unknown"]:
+        if col not in df_final.columns:
+            df_final[col] = 0
+
+    df_final["% Réussite"] = np.where(
+        df_final["Total_Charges"] > 0,
+        (df_final["Charges_OK"] / df_final["Total_Charges"] * 100).round(2),
+        0.0,
+    )
+    df_final["% Erreurs"] = np.where(
+        df_final["Total_Charges"] > 0,
+        (
+            (
+                df_final["Avant charge"]
+                + df_final["Charge"]
+                + df_final["Fin de charge"]
+                + df_final["Unknown"]
+            )
+            / df_final["Total_Charges"]
+            * 100
+        ).round(2),
+        0.0,
+    )
+
+    site_summary = df_final[
+        [
+            "Site",
+            "Total_Charges",
+            "Charges_OK",
+            "Charges_NOK",
+            "% Réussite",
+            "% Erreurs",
+            "Avant charge",
+            "Charge",
+            "Fin de charge",
+            "Unknown",
+        ]
+    ].to_dict("records")
+
+    return templates.TemplateResponse(
+        "partials/error_analysis.html",
+        {
+            "request": request,
+            "top_all": top_all,
+            "detail_all": detail_all,
+            "top_evi": top_evi,
+            "detail_evi": detail_evi,
+            "top_ds": top_ds,
+            "detail_ds": detail_ds,
+            "site_summary": site_summary,
         },
     )
 
