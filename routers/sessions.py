@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, Query
 from fastapi.templating import Jinja2Templates
 from datetime import date
+from typing import Any
 from urllib.parse import urlencode
 import pandas as pd
 import numpy as np
@@ -630,9 +631,16 @@ async def get_sessions_projection(
             0.0,
         )
 
+        def _clean_label(val: Any) -> str:
+            if isinstance(val, pd.Series):
+                val = val.squeeze()
+            if isinstance(val, (list, np.ndarray)):
+                val = val[0] if len(val) else ""
+            return str(val)
+
         rows = [
             {
-                "label": str(r["label"]),
+                "label": _clean_label(r["label"]),
                 "values": [int(r[col]) if pd.notna(r[col]) else 0 for col in value_cols],
                 "total": int(r["row_total"]),
                 "percent": float(r["row_percent"]),

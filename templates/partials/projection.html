@@ -32,6 +32,7 @@
 }
 .projection-table {
     width: 100%;
+    min-width: 720px;
     border-collapse: collapse;
     font-size: 0.9rem;
     color: #e2e8f0;
@@ -48,12 +49,27 @@
     background: #0b1221;
     color: #cbd5e1;
     font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+.projection-table thead tr:nth-child(2) th {
+    top: 36px;
 }
 .projection-table td:first-child {
     text-align: left;
     color: #f8fafc;
     font-weight: 600;
     white-space: nowrap;
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: linear-gradient(90deg, #0b1221 0%, #0f172a 100%);
+}
+.projection-table th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 4;
 }
 .legend-grid {
     display: grid;
@@ -73,6 +89,10 @@
     height: 16px;
     border: 1px solid #1f2937;
     border-radius: 3px;
+}
+.table-wrapper {
+    overflow-x: auto;
+    margin-top: 10px;
 }
 </style>
 
