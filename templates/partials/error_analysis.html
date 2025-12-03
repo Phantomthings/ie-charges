@@ -95,6 +95,61 @@
         border-radius: 4px;
         border: 1px solid #e2e8f0;
     }
+    .bar-card {
+        background: #f8fafc;
+        border: 1px dashed var(--color-border);
+        border-radius: var(--radius-md);
+        padding: 0.75rem;
+    }
+    .bar-chart {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        margin-top: 0.25rem;
+    }
+    .bar-row {
+        display: grid;
+        grid-template-columns: 140px 1fr 70px;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+    }
+    .bar-label {
+        font-weight: 600;
+        color: var(--color-text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .bar-track {
+        position: relative;
+        height: 12px;
+        background: #e2e8f0;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .bar-fill {
+        height: 100%;
+        border-radius: 999px;
+        transition: width 0.3s ease, opacity 0.2s ease;
+    }
+    .bar-value {
+        text-align: right;
+        color: var(--color-text);
+        font-variant-numeric: tabular-nums;
+    }
+    .chart-tooltip {
+        position: absolute;
+        background: rgba(15, 23, 42, 0.92);
+        color: #f8fafc;
+        padding: 0.35rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        pointer-events: none;
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25);
+        z-index: 9999;
+        display: none;
+    }
 </style>
 
 <div class="section-title">🔍 Analyse des erreurs</div>
@@ -524,11 +579,11 @@
     <div class="analysis-card" style="margin-top: 1rem;">
         <div class="analysis-title">Moments d'erreur (Avancé)</div>
         {% if moment_adv_counts %}
-            <div class="table-chart-grid">
-                <div class="table-wrapper">
-                    <table class="analysis-table" id="moment-adv-table">
-                        <thead>
-                            <tr>
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="moment-adv-table">
+                            <thead>
+                                <tr>
                                 <th data-sortable="true">Moment avancé</th>
                                 <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
                             </tr>
@@ -539,16 +594,15 @@
                                 <td>{{ row["moment_avancee"] }}</td>
                                 <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
                             </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="bar-card" data-bar-source="moment-adv-table">
+                        <div class="pie-title">Graphique</div>
+                        <div class="bar-chart"></div>
+                    </div>
                 </div>
-                <div class="pie-card" data-pie-source="moment-adv-table">
-                    <div class="pie-title">Graphique</div>
-                    <div class="pie-chart"></div>
-                    <div class="pie-legend"></div>
-                </div>
-            </div>
         {% else %}
             <div class="message">Aucune erreur à afficher pour ce périmètre.</div>
         {% endif %}
@@ -612,10 +666,9 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="pie-card" data-pie-source="evi-adv-table">
+                    <div class="bar-card" data-bar-source="evi-adv-table">
                         <div class="pie-title">Graphique</div>
-                        <div class="pie-chart"></div>
-                        <div class="pie-legend"></div>
+                        <div class="bar-chart"></div>
                     </div>
                 </div>
             {% else %}
@@ -682,10 +735,9 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="pie-card" data-pie-source="ds-adv-table">
+                    <div class="bar-card" data-bar-source="ds-adv-table">
                         <div class="pie-title">Graphique</div>
-                        <div class="pie-chart"></div>
-                        <div class="pie-legend"></div>
+                        <div class="bar-chart"></div>
                     </div>
                 </div>
             {% else %}
@@ -753,6 +805,24 @@
 
     (() => {
         const palettes = ['#0ea5e9', '#8b5cf6', '#f97316', '#10b981', '#ec4899', '#facc15', '#3b82f6', '#22c55e'];
+        const tooltip = document.querySelector('.chart-tooltip') || (() => {
+            const el = document.createElement('div');
+            el.className = 'chart-tooltip';
+            document.body.appendChild(el);
+            return el;
+        })();
+
+        const showTooltip = (content, event) => {
+            tooltip.innerHTML = content;
+            tooltip.style.display = 'block';
+            const offset = 12;
+            tooltip.style.left = `${event.pageX + offset}px`;
+            tooltip.style.top = `${event.pageY + offset}px`;
+        };
+
+        const hideTooltip = () => {
+            tooltip.style.display = 'none';
+        };
 
         const buildPie = (container, data) => {
             const total = data.reduce((sum, item) => sum + item.value, 0);
@@ -793,6 +863,19 @@
                 path.setAttribute('d', `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`);
                 path.setAttribute('fill', palettes[idx % palettes.length]);
                 path.setAttribute('aria-label', `${item.label}: ${item.value}`);
+                path.style.cursor = 'pointer';
+
+                const percent = ((item.value / total) * 100).toFixed(1);
+                path.addEventListener('mouseenter', (event) => {
+                    path.style.opacity = '0.85';
+                    showTooltip(`<strong>${item.label}</strong><br>${item.value} (${percent}%)`, event);
+                });
+                path.addEventListener('mousemove', (event) => showTooltip(`<strong>${item.label}</strong><br>${item.value} (${percent}%)`, event));
+                path.addEventListener('mouseleave', () => {
+                    path.style.opacity = '1';
+                    hideTooltip();
+                });
+
                 svg.appendChild(path);
             });
 
@@ -812,28 +895,93 @@
             });
         };
 
-        const extractData = (table) => {
-            const rows = Array.from(table.querySelectorAll('tbody tr'));
-            return rows.map((row) => {
-                const cells = Array.from(row.children);
-                const label = cells[0]?.textContent.trim() || '';
-                const numericCell = cells.slice(1).find((cell) => {
-                    const raw = cell.dataset.sortValue ?? cell.textContent;
-                    const cleaned = raw.toString().replace('%', '').replace(',', '.').trim();
-                    return cleaned !== '' && !isNaN(cleaned);
+        const buildBars = (container, data) => {
+            const chart = container.querySelector('.bar-chart');
+            if (!chart) return;
+
+            if (!data.length) {
+                chart.innerHTML = '<p style="color:#94a3b8; font-style:italic;">Aucune donnée</p>';
+                return;
+            }
+
+            const maxValue = Math.max(...data.map((item) => item.value));
+            const total = data.reduce((sum, item) => sum + item.value, 0) || 1;
+            chart.innerHTML = '';
+
+            data.forEach((item, idx) => {
+                const percentOfMax = maxValue ? (item.value / maxValue) * 100 : 0;
+                const percentOfTotal = ((item.value / total) * 100).toFixed(1);
+                const row = document.createElement('div');
+                row.className = 'bar-row';
+
+                const label = document.createElement('div');
+                label.className = 'bar-label';
+                label.textContent = item.label;
+
+                const track = document.createElement('div');
+                track.className = 'bar-track';
+
+                const fill = document.createElement('div');
+                fill.className = 'bar-fill';
+                fill.style.width = `${percentOfMax}%`;
+                fill.style.background = palettes[idx % palettes.length];
+                fill.style.cursor = 'pointer';
+
+                fill.addEventListener('mouseenter', (event) => {
+                    fill.style.opacity = '0.85';
+                    showTooltip(`<strong>${item.label}</strong><br>${item.value} (${percentOfTotal}%)`, event);
                 });
-                const rawValue = numericCell ? (numericCell.dataset.sortValue ?? numericCell.textContent) : '0';
-                const value = parseFloat(rawValue.toString().replace('%', '').replace(',', '.')) || 0;
-                return { label, value };
-            }).filter((item) => item.label !== '');
+                fill.addEventListener('mousemove', (event) => showTooltip(`<strong>${item.label}</strong><br>${item.value} (${percentOfTotal}%)`, event));
+                fill.addEventListener('mouseleave', () => {
+                    fill.style.opacity = '1';
+                    hideTooltip();
+                });
+
+                track.appendChild(fill);
+
+                const value = document.createElement('div');
+                value.className = 'bar-value';
+                value.textContent = item.value;
+
+                row.appendChild(label);
+                row.appendChild(track);
+                row.appendChild(value);
+                chart.appendChild(row);
+            });
+        };
+
+        const extractData = (table, { excludeTotal = false } = {}) => {
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
+            return rows
+                .map((row) => {
+                    const cells = Array.from(row.children);
+                    const label = cells[0]?.textContent.trim() || '';
+                    const numericCell = cells.slice(1).find((cell) => {
+                        const raw = cell.dataset.sortValue ?? cell.textContent;
+                        const cleaned = raw.toString().replace('%', '').replace(',', '.').trim();
+                        return cleaned !== '' && !isNaN(cleaned);
+                    });
+                    const rawValue = numericCell ? (numericCell.dataset.sortValue ?? numericCell.textContent) : '0';
+                    const value = parseFloat(rawValue.toString().replace('%', '').replace(',', '.')) || 0;
+                    return { label, value };
+                })
+                .filter((item) => item.label !== '' && (!excludeTotal || item.label.toLowerCase() !== 'total'));
         };
 
         document.querySelectorAll('[data-pie-source]').forEach((container) => {
             const tableId = container.dataset.pieSource;
             const table = document.getElementById(tableId);
             if (!table) return;
-            const data = extractData(table);
+            const data = extractData(table, { excludeTotal: true });
             buildPie(container, data);
+        });
+
+        document.querySelectorAll('[data-bar-source]').forEach((container) => {
+            const tableId = container.dataset.barSource;
+            const table = document.getElementById(tableId);
+            if (!table) return;
+            const data = extractData(table, { excludeTotal: true });
+            buildBars(container, data);
         });
     })();
 </script>
