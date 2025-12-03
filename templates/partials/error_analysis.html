@@ -17,8 +17,9 @@
         color: var(--color-text);
     }
     .table-wrapper {
-        overflow-x: auto;
+        overflow: auto;
         margin-top: 0.5rem;
+        max-height: 420px;
     }
     .analysis-table {
         width: 100%;
@@ -35,7 +36,11 @@
         background: #f8fafc;
         color: var(--color-text-muted);
         font-weight: 600;
+        cursor: pointer;
+        user-select: none;
     }
+    .analysis-table th.sorted-asc::after { content: ' ▲'; font-size: 0.75rem; color: var(--color-text-muted); }
+    .analysis-table th.sorted-desc::after { content: ' ▼'; font-size: 0.75rem; color: var(--color-text-muted); }
     .analysis-table tbody tr:nth-child(even) {
         background: #f9fafb;
     }
@@ -64,12 +69,12 @@
                     <table class="analysis-table">
                         <thead>
                             <tr>
-                                <th>Moment</th>
-                                <th>Step</th>
-                                <th>Code</th>
-                                <th>Type</th>
-                                <th>Occurrences</th>
-                                <th>%</th>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code</th>
+                                <th data-sortable="true">Type</th>
+                                <th data-sortable="true" data-type="number">Occurrences</th>
+                                <th data-sortable="true" data-type="number">%</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -79,8 +84,8 @@
                                 <td>{{ row.step }}</td>
                                 <td>{{ row.code }}</td>
                                 <td>{{ row.type }}</td>
-                                <td style="text-align:right;">{{ row.Occurrences }}</td>
-                                <td style="text-align:right;">{{ '%.2f'|format(row.percent) }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Occurrences }}">{{ row.Occurrences }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row.percent) }}">{{ '%.2f'|format(row.percent) }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -97,12 +102,12 @@
                     <table class="analysis-table">
                         <thead>
                             <tr>
-                                <th>Site</th>
-                                <th>Type</th>
-                                <th>Moment</th>
-                                <th>Step</th>
-                                <th>Code</th>
-                                <th>Occurrences</th>
+                                <th data-sortable="true">Site</th>
+                                <th data-sortable="true">Type</th>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code</th>
+                                <th data-sortable="true" data-type="number">Occurrences</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -113,7 +118,7 @@
                                 <td>{{ row.moment_label }}</td>
                                 <td>{{ row.step }}</td>
                                 <td>{{ row.code }}</td>
-                                <td style="text-align:right;">{{ row.Occurrences }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Occurrences }}">{{ row.Occurrences }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -133,11 +138,11 @@
                     <table class="analysis-table">
                         <thead>
                             <tr>
-                                <th>Moment</th>
-                                <th>Step</th>
-                                <th>Code EVI</th>
-                                <th>Occurrences</th>
-                                <th>%</th>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code EVI</th>
+                                <th data-sortable="true" data-type="number">Occurrences</th>
+                                <th data-sortable="true" data-type="number">%</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -146,8 +151,8 @@
                                 <td>{{ row.moment_label }}</td>
                                 <td>{{ row.step }}</td>
                                 <td>{{ row.code }}</td>
-                                <td style="text-align:right;">{{ row.Occurrences }}</td>
-                                <td style="text-align:right;">{{ '%.2f'|format(row.percent) }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Occurrences }}">{{ row.Occurrences }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row.percent) }}">{{ '%.2f'|format(row.percent) }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -164,11 +169,11 @@
                     <table class="analysis-table">
                         <thead>
                             <tr>
-                                <th>Site</th>
-                                <th>Moment</th>
-                                <th>Step</th>
-                                <th>Code EVI</th>
-                                <th>Occurrences</th>
+                                <th data-sortable="true">Site</th>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code EVI</th>
+                                <th data-sortable="true" data-type="number">Occurrences</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -178,7 +183,7 @@
                                 <td>{{ row.moment_label }}</td>
                                 <td>{{ row.step }}</td>
                                 <td>{{ row.code }}</td>
-                                <td style="text-align:right;">{{ row.Occurrences }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Occurrences }}">{{ row.Occurrences }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -198,11 +203,11 @@
                     <table class="analysis-table">
                         <thead>
                             <tr>
-                                <th>Moment</th>
-                                <th>Step</th>
-                                <th>Code PC</th>
-                                <th>Occurrences</th>
-                                <th>%</th>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code PC</th>
+                                <th data-sortable="true" data-type="number">Occurrences</th>
+                                <th data-sortable="true" data-type="number">%</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -211,8 +216,8 @@
                                 <td>{{ row.moment_label }}</td>
                                 <td>{{ row.step }}</td>
                                 <td>{{ row.code }}</td>
-                                <td style="text-align:right;">{{ row.Occurrences }}</td>
-                                <td style="text-align:right;">{{ '%.2f'|format(row.percent) }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Occurrences }}">{{ row.Occurrences }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row.percent) }}">{{ '%.2f'|format(row.percent) }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -229,11 +234,11 @@
                     <table class="analysis-table">
                         <thead>
                             <tr>
-                                <th>Site</th>
-                                <th>Moment</th>
-                                <th>Step</th>
-                                <th>Code PC</th>
-                                <th>Occurrences</th>
+                                <th data-sortable="true">Site</th>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code PC</th>
+                                <th data-sortable="true" data-type="number">Occurrences</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -243,7 +248,7 @@
                                 <td>{{ row.moment_label }}</td>
                                 <td>{{ row.step }}</td>
                                 <td>{{ row.code }}</td>
-                                <td style="text-align:right;">{{ row.Occurrences }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Occurrences }}">{{ row.Occurrences }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -262,31 +267,31 @@
                 <table class="analysis-table">
                     <thead>
                         <tr>
-                            <th>Site</th>
-                            <th>Total</th>
-                            <th>OK</th>
-                            <th>NOK</th>
-                            <th>% Réussite</th>
-                            <th>% Erreurs</th>
-                            <th>Nb Avant charge</th>
-                            <th>Nb Charge</th>
-                            <th>Nb Fin de charge</th>
-                            <th>Nb Unknown</th>
+                            <th data-sortable="true">Site</th>
+                            <th data-sortable="true" data-type="number">Total</th>
+                            <th data-sortable="true" data-type="number">OK</th>
+                            <th data-sortable="true" data-type="number">NOK</th>
+                            <th data-sortable="true" data-type="number">% Réussite</th>
+                            <th data-sortable="true" data-type="number">% Erreurs</th>
+                            <th data-sortable="true" data-type="number">Nb Avant charge</th>
+                            <th data-sortable="true" data-type="number">Nb Charge</th>
+                            <th data-sortable="true" data-type="number">Nb Fin de charge</th>
+                            <th data-sortable="true" data-type="number">Nb Unknown</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for row in site_summary %}
                         <tr>
                             <td>{{ row["Site"] }}</td>
-                            <td style="text-align:right;">{{ row["Total_Charges"] }}</td>
-                            <td style="text-align:right;">{{ row["Charges_OK"] }}</td>
-                            <td style="text-align:right;">{{ row["Charges_NOK"] }}</td>
-                            <td style="text-align:right;">{{ '%.2f'|format(row['% Réussite']) }}</td>
-                            <td style="text-align:right;">{{ '%.2f'|format(row['% Erreurs']) }}</td>
-                            <td style="text-align:right;">{{ row["Avant charge"] }}</td>
-                            <td style="text-align:right;">{{ row["Charge"] }}</td>
-                            <td style="text-align:right;">{{ row["Fin de charge"] }}</td>
-                            <td style="text-align:right;">{{ row["Unknown"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Total_Charges"] }}">{{ row["Total_Charges"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Charges_OK"] }}">{{ row["Charges_OK"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Charges_NOK"] }}">{{ row["Charges_NOK"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row['% Réussite']) }}">{{ '%.2f'|format(row['% Réussite']) }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row['% Erreurs']) }}">{{ '%.2f'|format(row['% Erreurs']) }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Avant charge"] }}">{{ row["Avant charge"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Charge"] }}">{{ row["Charge"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Fin de charge"] }}">{{ row["Fin de charge"] }}</td>
+                            <td style="text-align:right;" data-sort-value="{{ row["Unknown"] }}">{{ row["Unknown"] }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -297,3 +302,60 @@
         {% endif %}
     </div>
 {% endif %}
+
+<script>
+    (() => {
+        const tables = document.querySelectorAll('.analysis-table');
+        const parseValue = (text, type) => {
+            const cleaned = (text || '').toString().replace('%', '').replace(/\s+/g, '');
+            if (type === 'number' && cleaned !== '' && !isNaN(cleaned)) {
+                return parseFloat(cleaned);
+            }
+            return cleaned.toLowerCase();
+        };
+
+        tables.forEach((table) => {
+            const headers = table.querySelectorAll('th[data-sortable]');
+            const tbody = table.querySelector('tbody');
+            let currentSort = { index: null, dir: 'asc' };
+
+            const applySort = (index, type) => {
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const dirMultiplier = currentSort.dir === 'asc' ? 1 : -1;
+
+                rows.sort((a, b) => {
+                    const aVal = parseValue(a.children[index].dataset.sortValue ?? a.children[index].textContent.trim(), type);
+                    const bVal = parseValue(b.children[index].dataset.sortValue ?? b.children[index].textContent.trim(), type);
+
+                    if (aVal < bVal) return -1 * dirMultiplier;
+                    if (aVal > bVal) return 1 * dirMultiplier;
+                    return 0;
+                });
+
+                rows.forEach((row) => tbody.appendChild(row));
+            };
+
+            const updateIndicators = (clickedIndex) => {
+                headers.forEach((th, idx) => {
+                    th.classList.remove('sorted-asc', 'sorted-desc');
+                    if (idx === clickedIndex) {
+                        th.classList.add(currentSort.dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                    }
+                });
+            };
+
+            headers.forEach((th, index) => {
+                th.addEventListener('click', () => {
+                    const type = th.dataset.type || 'text';
+                    if (currentSort.index === index) {
+                        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort = { index, dir: 'asc' };
+                    }
+                    applySort(index, type);
+                    updateIndicators(index);
+                });
+            });
+        });
+    })();
+</script>
