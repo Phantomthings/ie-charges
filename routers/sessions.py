@@ -23,18 +23,10 @@ PHASE_MAP = {
 router = APIRouter(tags=["sessions"])
 templates = Jinja2Templates(directory="templates")
 
-# Cache pour la stratégie de récupération des données Vehicle
 _vehicle_strategy_cache = None
 
 
 def _get_vehicle_strategy():
-    """
-    Détermine la stratégie optimale pour récupérer les données Vehicle.
-    Cette fonction est appelée une seule fois au premier accès et met en cache le résultat.
-
-    Returns:
-        tuple: (vehicle_select, join_clause) pour la requête SQL
-    """
     global _vehicle_strategy_cache
 
     if _vehicle_strategy_cache is not None:
@@ -927,26 +919,6 @@ async def get_error_analysis(
             {"request": request, "no_errors": True},
         )
 
-    err_nonempty = err[
-        err["type_erreur"].notna()
-        & err["type_erreur"].astype(str).str.strip().ne("")
-    ].copy()
-
-    type_breakdown: list[dict[str, Any]] = []
-    type_breakdown_total = 0
-    if not err_nonempty.empty:
-        type_counts = (
-            err_nonempty.groupby("type_erreur")
-            .size()
-            .reset_index(name="Nb")
-            .sort_values("Nb", ascending=False)
-        )
-        type_breakdown_total = int(type_counts["Nb"].sum())
-        type_counts["percent"] = (
-            type_counts["Nb"] / type_breakdown_total * 100
-        ).round(2)
-        type_breakdown = type_counts.to_dict("records")
-
     evi_step = pd.to_numeric(err.get(EVI_MOMENT, pd.Series(np.nan, index=err.index)), errors="coerce")
     evi_code = pd.to_numeric(err.get(EVI_CODE, pd.Series(np.nan, index=err.index)), errors="coerce").fillna(0).astype(int)
     ds_pc = pd.to_numeric(err.get(DS_PC, pd.Series(np.nan, index=err.index)), errors="coerce").fillna(0).astype(int)
@@ -1126,159 +1098,22 @@ async def get_error_analysis(
         ]
     ].to_dict("records")
 
-    def _format_counts(
-        series: pd.Series, *, order: list[str] | None = None, label: str = "Nb"
-    ) -> list[dict[str, Any]]:
-        ordered = (
-            series.reindex(order, fill_value=0)
-            if order is not None
-            else series.sort_values(ascending=False)
-        )
-        df_counts = (
-            ordered.reset_index()
-            .rename(columns={ordered.index.name or "index": "label", 0: label})
-        )
-        df_counts = df_counts[df_counts[label] > 0]
-        total_val = int(df_counts[label].sum()) or 0
-        if total_val > 0:
-            df_counts["percent"] = (df_counts[label] / total_val * 100).round(2)
-        return df_counts.to_dict("records")
-
-    moment_breakdown = []
-    if "moment" in err.columns:
-        counts_moment = err.groupby("moment").size()
-        moment_breakdown = _format_counts(counts_moment, order=MOMENT_ORDER)
-
-    moment_avance_breakdown = []
-    if "moment_avancee" in err.columns:
-        counts_av = err.groupby("moment_avancee").size()
-        moment_avance_breakdown = _format_counts(counts_av)
-
-    err_evi = err[err.get("type_erreur", "") == "Erreur_EVI"].copy()
-    err_ds = err[err.get("type_erreur", "") == "Erreur_DownStream"].copy()
-
-    evi_moment_breakdown = []
-    evi_moment_avance_breakdown = []
-    if not err_evi.empty:
-        if "moment" in err_evi.columns:
-            evi_counts_moment = err_evi.groupby("moment").size()
-            evi_moment_breakdown = _format_counts(
-                evi_counts_moment, order=MOMENT_ORDER
-            )
-        if "moment_avancee" in err_evi.columns:
-            evi_counts_av = err_evi.groupby("moment_avancee").size()
-            evi_moment_avance_breakdown = _format_counts(evi_counts_av)
-
-    ds_moment_breakdown = []
-    ds_moment_avance_breakdown = []
-    if not err_ds.empty:
-        if "moment" in err_ds.columns:
-            ds_counts_moment = err_ds.groupby("moment").size()
-            ds_moment_breakdown = _format_counts(ds_counts_moment, order=MOMENT_ORDER)
-        if "moment_avancee" in err_ds.columns:
-            ds_counts_av = err_ds.groupby("moment_avancee").size()
-            ds_moment_avance_breakdown = _format_counts(ds_counts_av)
-
-    evi_step = pd.to_numeric(
-        err.get(EVI_MOMENT, pd.Series(np.nan, index=err.index)), errors="coerce"
-    ).fillna(0)
-    evi_code = pd.to_numeric(
-        err.get(EVI_CODE, pd.Series(np.nan, index=err.index)), errors="coerce"
-    ).fillna(0)
-    ds_pc = pd.to_numeric(
-        err.get(DS_PC, pd.Series(np.nan, index=err.index)), errors="coerce"
-    ).fillna(0)
-
-    evi_moment_code = []
-    evi_moment_code_site = []
-    if not sub_evi.empty and {EVI_MOMENT, EVI_CODE, DS_PC}.issubset(err.columns):
-        sub_evi = sub_evi.copy()
-        sub_evi["_moment"] = sub_evi["step"].map(_map_moment_label)
-        tbl = (
-            sub_evi.groupby(["_moment", "step", "code"])
-            .size()
-            .reset_index(name="Somme de Charge_NOK")
-            .sort_values("Somme de Charge_NOK", ascending=False)
-        )
-        total = int(tbl["Somme de Charge_NOK"].sum()) if not tbl.empty else 0
-        evi_moment_code = tbl.to_dict("records")
-        if total:
-            evi_moment_code.append(
-                {
-                    "_moment": "Total",
-                    "step": "",
-                    "code": "",
-                    "Somme de Charge_NOK": total,
-                }
-            )
-
-        tbl_site = (
-            sub_evi.groupby(["Site", "_moment", "step", "code"])
-            .size()
-            .reset_index(name="Somme de Charge_NOK")
-            .sort_values(["Site", "Somme de Charge_NOK"], ascending=[True, False])
-        )
-        evi_moment_code_site = tbl_site.to_dict("records")
-
-    ds_moment_code = []
-    ds_moment_code_site = []
-    if not sub_ds.empty and {EVI_MOMENT, DS_PC}.issubset(err.columns):
-        sub_ds = sub_ds.copy()
-        sub_ds["_moment"] = sub_ds["step"].map(_map_moment_label)
-        tbl = (
-            sub_ds.groupby(["_moment", "step", "code"])
-            .size()
-            .reset_index(name="Somme de Charge_NOK")
-            .sort_values("Somme de Charge_NOK", ascending=False)
-        )
-        total = int(tbl["Somme de Charge_NOK"].sum()) if not tbl.empty else 0
-        ds_moment_code = tbl.to_dict("records")
-        if total:
-            ds_moment_code.append(
-                {
-                    "_moment": "Total",
-                    "step": "",
-                    "code": "",
-                    "Somme de Charge_NOK": total,
-                }
-            )
-
-        tbl_site = (
-            sub_ds.groupby(["Site", "_moment", "step", "code"])
-            .size()
-            .reset_index(name="Somme de Charge_NOK")
-            .sort_values(["Site", "Somme de Charge_NOK"], ascending=[True, False])
-        )
-        ds_moment_code_site = tbl_site.to_dict("records")
-
     return templates.TemplateResponse(
         "partials/error_analysis.html",
         {
             "request": request,
-            "top_all": top_all,
-            "detail_all": detail_all,
-            "detail_all_pivot": detail_all_pivot,
-            "top_evi": top_evi,
-            "detail_evi": detail_evi,
-            "detail_evi_pivot": detail_evi_pivot,
-            "top_ds": top_ds,
-            "detail_ds": detail_ds,
-            "detail_ds_pivot": detail_ds_pivot,
-            "site_summary": site_summary,
-            "type_breakdown": type_breakdown,
-            "type_breakdown_total": type_breakdown_total,
-            "moment_breakdown": moment_breakdown,
-            "moment_avance_breakdown": moment_avance_breakdown,
-            "evi_moment_breakdown": evi_moment_breakdown,
-            "evi_moment_avance_breakdown": evi_moment_avance_breakdown,
-            "ds_moment_breakdown": ds_moment_breakdown,
-            "ds_moment_avance_breakdown": ds_moment_avance_breakdown,
-            "evi_moment_code": evi_moment_code,
-            "evi_moment_code_site": evi_moment_code_site,
-            "ds_moment_code": ds_moment_code,
-            "ds_moment_code_site": ds_moment_code_site,
-        },
-    )
+        "top_all": top_all,
+        "detail_all": detail_all,
+        "detail_all_pivot": detail_all_pivot,
+        "top_evi": top_evi,
+        "detail_evi": detail_evi,
+        "detail_evi_pivot": detail_evi_pivot,
+        "top_ds": top_ds,
+        "detail_ds": detail_ds,
+        "detail_ds_pivot": detail_ds_pivot,
+        "site_summary": site_summary,
+    },
+)
 
 
 @router.get("/sessions/general")
