@@ -110,7 +110,7 @@
                 {% for row in site.rows %}
                 <tr>
                     <td>{{ row.label }}</td>
-                    {% for val in row.values %}
+                    {% for val in row["values"] %}
                         <td style="{{ cell_style(val) }}">{{ val }}</td>
                     {% endfor %}
                     <td style="font-weight:700; background:#0b1221;">{{ row.total }}</td>
