@@ -41,8 +41,6 @@ def _get_vehicle_strategy():
         return _vehicle_strategy_cache
 
     if table_exists("kpi_charges_mac"):
-        # Vehicle existe dans kpi_charges_mac, faire un LEFT JOIN sur ID
-        # JOIN sur ID est plus fiable que MAC Address + Datetime
         _vehicle_strategy_cache = (
             "c.Vehicle",
             """
@@ -51,7 +49,6 @@ def _get_vehicle_strategy():
         """
         )
     else:
-        # Aucune source de données Vehicle disponible
         _vehicle_strategy_cache = ("NULL AS Vehicle", "")
 
     return _vehicle_strategy_cache
@@ -61,7 +58,6 @@ def _build_conditions(sites: str, date_debut: date | None, date_fin: date | None
     conditions = ["1=1"]
     params = {}
 
-    # Add table qualifier if provided
     datetime_col = f"{table_alias}.`Datetime start`" if table_alias else "`Datetime start`"
     site_col = f"{table_alias}.Site" if table_alias else "Site"
 
@@ -890,7 +886,7 @@ async def get_error_analysis(
         .assign(Charges_NOK=lambda d: d["Total_Charges"] - d["Charges_OK"])
     )
 
-    def _build_pivot_table(detail_df: pd.DataFrame) -> dict[str, Any]:
+    def _build_pivot_table(detail_df: pd.DataFrame, by_site: pd.DataFrame) -> dict[str, Any]:
         if detail_df.empty:
             return {"columns": [], "rows": []}
 
@@ -910,30 +906,30 @@ async def get_error_analysis(
             fill_value=0,
         ).sort_index(axis=1)
 
-        # Ensure the site index survives the reset and is consistently named.
-        pivot_table.index.name = "Site"
+        # 👇 1. Reset index pour avoir "Site" comme colonne
         pivot_table = pivot_table.reset_index().rename(columns={"_site": "Site"})
 
+        # 👇 2. APLATIR le MultiIndex des colonnes AVANT le merge
         pivot_table.columns = [
-            "Site"
-            if col == "Site"
-            else " | ".join(map(str, col)).strip() if isinstance(col, tuple) else str(col)
+            "Site" if col == "Site" else " | ".join(map(str, col)).strip()
+            if isinstance(col, tuple) else str(col)
             for col in pivot_table.columns
         ]
 
+        # 👇 3. MAINTENANT on peut merger (colonnes plates des deux côtés)
         pivot_table = pivot_table.merge(
-            by_site.rename(columns={"Site": "Site", "Total_Charges": "Total Charges"})[
-                ["Site", "Total Charges"]
-            ],
+            by_site.rename(columns={"Total_Charges": "Total Charges"})[["Site", "Total Charges"]],
             on="Site",
             how="left",
         )
 
+        # 👇 4. Réorganiser les colonnes
         ordered_columns = ["Site", "Total Charges"] + [
             col for col in pivot_table.columns if col not in {"Site", "Total Charges"}
         ]
         pivot_table = pivot_table[ordered_columns].fillna(0)
 
+        # 👇 5. Convertir en int les colonnes numériques
         numeric_cols = [col for col in pivot_table.columns if col != "Site"]
         pivot_table[numeric_cols] = pivot_table[numeric_cols].astype(int)
 
@@ -941,7 +937,6 @@ async def get_error_analysis(
             "columns": pivot_table.columns.tolist(),
             "rows": pivot_table.to_dict("records"),
         }
-
     all_err = pd.concat([sub_evi, sub_ds], ignore_index=True)
 
     top_all: list[dict[str, Any]] = []
@@ -974,7 +969,7 @@ async def get_error_analysis(
             )
             .to_dict("records")
         )
-        detail_all_pivot = _build_pivot_table(detail_all_df)
+        detail_all_pivot = _build_pivot_table(detail_all_df, by_site)
 
     top_evi: list[dict[str, Any]] = []
     detail_evi: list[dict[str, Any]] = []
@@ -1000,7 +995,8 @@ async def get_error_analysis(
             .sort_values(["moment_label", "step", "code", "Occurrences"], ascending=[True, True, True, False])
             .to_dict("records")
         )
-        detail_evi_pivot = _build_pivot_table(detail_evi_df)
+        detail_evi_pivot = _build_pivot_table(detail_evi_df, by_site)
+
 
     top_ds: list[dict[str, Any]] = []
     detail_ds: list[dict[str, Any]] = []
@@ -1026,7 +1022,7 @@ async def get_error_analysis(
             .sort_values(["moment_label", "step", "code", "Occurrences"], ascending=[True, True, True, False])
             .to_dict("records")
         )
-        detail_ds_pivot = _build_pivot_table(detail_ds_df)
+        detail_ds_pivot = _build_pivot_table(detail_ds_df, by_site)
 
     detail_all_pivot = locals().get("detail_all_pivot", {"columns": [], "rows": []})
     detail_evi_pivot = locals().get("detail_evi_pivot", {"columns": [], "rows": []})
