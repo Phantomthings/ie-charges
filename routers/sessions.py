@@ -671,12 +671,25 @@ async def get_sessions_projection(
         numeric_values = df_disp[value_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
         df_disp["row_total"] = numeric_values_all.sum(axis=1).astype(int)
 
-        total_general_value = int(numeric_values.sum().sum())
-        df_disp["row_percent"] = np.where(
-            total_general_value > 0,
-            (df_disp["row_total"] / total_general_value * 100).round(1),
-            0.0,
-        )
+        total_row_mask = df_disp["label"].astype(str).str.endswith("(TOTAL)")
+        if total_row_mask.any():
+            total_general_value = int(df_disp.loc[total_row_mask, "row_total"].iloc[0])
+            df_disp["row_percent"] = np.where(
+                total_general_value > 0,
+                np.where(
+                    total_row_mask,
+                    100.0,
+                    (df_disp["row_total"] / total_general_value * 100).round(1),
+                ),
+                0.0,
+            )
+        else:
+            total_general_value = int(df_disp["row_total"].sum())
+            df_disp["row_percent"] = np.where(
+                total_general_value > 0,
+                (df_disp["row_total"] / total_general_value * 100).round(1),
+                0.0,
+            )
 
         def _clean_label(val: Any) -> str:
             if isinstance(val, pd.Series):
