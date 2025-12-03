@@ -906,8 +906,11 @@ async def get_error_analysis(
             fill_value=0,
         ).sort_index(axis=1)
 
-        # 👇 1. Reset index pour avoir "Site" comme colonne
-        pivot_table = pivot_table.reset_index().rename(columns={"_site": "Site"})
+        # 👇 1. Reset index pour avoir "Site" comme colonne (robuste aux variations de nom)
+        pivot_table = pivot_table.reset_index()
+        pivot_table = pivot_table.rename(columns={"_site": "Site", "index": "Site"})
+        if "Site" not in pivot_table.columns:
+            pivot_table.insert(0, "Site", pivot_df["_site"].unique())
 
         # 👇 2. APLATIR le MultiIndex des colonnes AVANT le merge
         pivot_table.columns = [
