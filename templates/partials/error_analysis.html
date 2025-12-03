@@ -246,6 +246,128 @@
         </div>
     </div>
 
+    <div class="analysis-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="analysis-card">
+            <div class="analysis-title">EVI — Moment × Code</div>
+            {% if evi_moment_code %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in evi_moment_code %}
+                            <tr>
+                                <td>{{ row["Moment"] }}</td>
+                                <td>{{ row["Step"] }}</td>
+                                <td>{{ row["Code"] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur correspondant à la logique 'Erreur_EVI' pour ce périmètre.</div>
+            {% endif %}
+
+            <div class="analysis-title" style="margin-top: 1rem;">EVI — Moment × Code × Site</div>
+            {% if evi_moment_code_site %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Site</th>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in evi_moment_code_site %}
+                            <tr>
+                                <td>{{ row["Site"] }}</td>
+                                <td>{{ row["Moment"] }}</td>
+                                <td>{{ row["Step"] }}</td>
+                                <td>{{ row["Code"] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune donnée EVI par site.</div>
+            {% endif %}
+        </div>
+
+        <div class="analysis-card">
+            <div class="analysis-title">Downstream — Moment × Code PC</div>
+            {% if ds_moment_code %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code PC</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in ds_moment_code %}
+                            <tr>
+                                <td>{{ row["Moment"] }}</td>
+                                <td>{{ row["Step"] }}</td>
+                                <td>{{ row["Code PC"] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucun Downstream Code PC non nul pour ce périmètre.</div>
+            {% endif %}
+
+            <div class="analysis-title" style="margin-top: 1rem;">Downstream — Moment × Code PC × Site</div>
+            {% if ds_moment_code_site %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Site</th>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true">Step</th>
+                                <th data-sortable="true">Code PC</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in ds_moment_code_site %}
+                            <tr>
+                                <td>{{ row["Site"] }}</td>
+                                <td>{{ row["Moment"] }}</td>
+                                <td>{{ row["Step"] }}</td>
+                                <td>{{ row["Code PC"] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune donnée Downstream par site.</div>
+            {% endif %}
+        </div>
+    </div>
+
     <div class="analysis-card" style="margin-top: 1rem;">
         <div class="analysis-title">Résumé par site et phase</div>
         {% if site_summary %}

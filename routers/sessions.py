@@ -950,6 +950,80 @@ async def get_error_analysis(
     sub_ds["code"] = ds_pc.loc[sub_ds.index]
     sub_ds["type"] = "Erreur_DownStream"
 
+    evi_moment_code: list[dict[str, Any]] = []
+    evi_moment_code_site: list[dict[str, Any]] = []
+    if not sub_evi.empty:
+        evi_moment_code_df = (
+            sub_evi.groupby(["moment_label", "step", "code"])
+            .size()
+            .reset_index(name="Somme de Charge_NOK")
+            .sort_values("Somme de Charge_NOK", ascending=False)
+        )
+        evi_total = int(evi_moment_code_df["Somme de Charge_NOK"].sum())
+        total_row = pd.DataFrame(
+            [
+                {
+                    "moment_label": "Total",
+                    "step": "",
+                    "code": "",
+                    "Somme de Charge_NOK": evi_total,
+                }
+            ]
+        )
+        evi_moment_code_df = pd.concat([evi_moment_code_df, total_row], ignore_index=True)
+        evi_moment_code_df.rename(
+            columns={"moment_label": "Moment", "step": "Step", "code": "Code"}, inplace=True
+        )
+        evi_moment_code = evi_moment_code_df.to_dict("records")
+
+        evi_moment_code_site_df = (
+            sub_evi.groupby(["Site", "moment_label", "step", "code"])
+            .size()
+            .reset_index(name="Somme de Charge_NOK")
+            .sort_values(["Site", "Somme de Charge_NOK"], ascending=[True, False])
+        )
+        evi_moment_code_site_df.rename(
+            columns={"moment_label": "Moment", "step": "Step", "code": "Code"}, inplace=True
+        )
+        evi_moment_code_site = evi_moment_code_site_df.to_dict("records")
+
+    ds_moment_code: list[dict[str, Any]] = []
+    ds_moment_code_site: list[dict[str, Any]] = []
+    if not sub_ds.empty:
+        ds_moment_code_df = (
+            sub_ds.groupby(["moment_label", "step", "code"])
+            .size()
+            .reset_index(name="Somme de Charge_NOK")
+            .sort_values("Somme de Charge_NOK", ascending=False)
+        )
+        ds_total = int(ds_moment_code_df["Somme de Charge_NOK"].sum())
+        ds_total_row = pd.DataFrame(
+            [
+                {
+                    "moment_label": "Total",
+                    "step": "",
+                    "code": "",
+                    "Somme de Charge_NOK": ds_total,
+                }
+            ]
+        )
+        ds_moment_code_df = pd.concat([ds_moment_code_df, ds_total_row], ignore_index=True)
+        ds_moment_code_df.rename(
+            columns={"moment_label": "Moment", "step": "Step", "code": "Code PC"}, inplace=True
+        )
+        ds_moment_code = ds_moment_code_df.to_dict("records")
+
+        ds_moment_code_site_df = (
+            sub_ds.groupby(["Site", "moment_label", "step", "code"])
+            .size()
+            .reset_index(name="Somme de Charge_NOK")
+            .sort_values(["Site", "Somme de Charge_NOK"], ascending=[True, False])
+        )
+        ds_moment_code_site_df.rename(
+            columns={"moment_label": "Moment", "step": "Step", "code": "Code PC"}, inplace=True
+        )
+        ds_moment_code_site = ds_moment_code_site_df.to_dict("records")
+
     by_site = (
         df.groupby("Site", as_index=False)
         .agg(Total_Charges=("is_ok_filt", "count"), Charges_OK=("is_ok_filt", "sum"))
@@ -1111,6 +1185,10 @@ async def get_error_analysis(
         "top_ds": top_ds,
         "detail_ds": detail_ds,
         "detail_ds_pivot": detail_ds_pivot,
+        "evi_moment_code": evi_moment_code,
+        "evi_moment_code_site": evi_moment_code_site,
+        "ds_moment_code": ds_moment_code,
+        "ds_moment_code_site": ds_moment_code_site,
         "site_summary": site_summary,
     },
 )
