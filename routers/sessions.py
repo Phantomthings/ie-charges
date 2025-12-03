@@ -260,8 +260,14 @@ async def get_sessions_stats(
         max_day_nb = 0
 
     # === DURÉES DE FONCTIONNEMENT PAR SITE ===
-    if not ok_df.empty and "Datetime start" in ok_df.columns and "Datetime end" in ok_df.columns:
-        dur_df = ok_df[["Site", "PDC", "Datetime start", "Datetime end"]].copy()
+    dur_source = ok_df.copy()
+
+    # Appliquer le filtre moment pour les durées afin de respecter le filtrage côté interface
+    if moment_list and "moment" in dur_source.columns:
+        dur_source = dur_source[dur_source["moment"].isin(moment_list)]
+
+    if not dur_source.empty and "Datetime start" in dur_source.columns and "Datetime end" in dur_source.columns:
+        dur_df = dur_source[["Site", "PDC", "Datetime start", "Datetime end"]].copy()
         dur_df = dur_df.dropna(subset=["Datetime start", "Datetime end"])
         dur_df["dur_min"] = (
             pd.to_datetime(dur_df["Datetime end"]) - pd.to_datetime(dur_df["Datetime start"])
