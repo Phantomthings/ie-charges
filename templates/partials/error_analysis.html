@@ -1,3 +1,4 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
     .analysis-grid {
         display: grid;
@@ -51,6 +52,16 @@
         border-radius: var(--radius-md);
         border: 1px solid #bfdbfe;
         margin: 0.5rem 0;
+    }
+    .chart-wrapper {
+        position: relative;
+        height: 300px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .chart-wrapper canvas {
+        max-height: 300px;
     }
 </style>
 
@@ -410,7 +421,7 @@
         {% endif %}
     </div>
 
-    <div class="analysis-grid" style="margin-top: 1rem; grid-template-columns: 1fr 1fr;">
+    <div class="analysis-grid" style="margin-top: 1rem;">
         <div class="analysis-card">
             <div class="analysis-title">Répartition des types d'erreur</div>
             {% if error_type_counts %}
@@ -438,6 +449,18 @@
         </div>
 
         <div class="analysis-card">
+            {% if error_type_counts %}
+                <div class="chart-wrapper">
+                    <canvas id="chart-error-types"></canvas>
+                </div>
+            {% else %}
+                <div class="message">Aucune donnée pour le graphique.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-grid" style="margin-top: 1rem;">
+        <div class="analysis-card">
             <div class="analysis-title">Moments d'erreur (EVI + Downstream)</div>
             {% if moment_counts %}
                 <div class="table-wrapper">
@@ -462,35 +485,57 @@
                 <div class="message">Aucune erreur à afficher pour ce périmètre.</div>
             {% endif %}
         </div>
+
+        <div class="analysis-card">
+            {% if moment_counts %}
+                <div class="chart-wrapper">
+                    <canvas id="chart-moments"></canvas>
+                </div>
+            {% else %}
+                <div class="message">Aucune donnée pour le graphique.</div>
+            {% endif %}
+        </div>
     </div>
 
-    <div class="analysis-card" style="margin-top: 1rem;">
-        <div class="analysis-title">Moments d'erreur (Avancé)</div>
-        {% if moment_adv_counts %}
-            <div class="table-wrapper">
-                <table class="analysis-table">
-                    <thead>
-                        <tr>
-                            <th data-sortable="true">Moment avancé</th>
-                            <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in moment_adv_counts %}
-                        <tr>
-                            <td>{{ row["moment_avancee"] }}</td>
-                            <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="message">Aucune erreur à afficher pour ce périmètre.</div>
-        {% endif %}
+    <div class="analysis-grid" style="margin-top: 1rem;">
+        <div class="analysis-card">
+            <div class="analysis-title">Moments d'erreur (Avancé)</div>
+            {% if moment_adv_counts %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment avancé</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in moment_adv_counts %}
+                            <tr>
+                                <td>{{ row["moment_avancee"] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur à afficher pour ce périmètre.</div>
+            {% endif %}
+        </div>
+
+        <div class="analysis-card">
+            {% if moment_adv_counts %}
+                <div class="chart-wrapper">
+                    <canvas id="chart-moments-adv"></canvas>
+                </div>
+            {% else %}
+                <div class="message">Aucune donnée pour le graphique.</div>
+            {% endif %}
+        </div>
     </div>
 
-    <div class="analysis-grid" style="margin-top: 1rem; grid-template-columns: 1fr 1fr;">
+    <div class="analysis-grid" style="margin-top: 1rem;">
         <div class="analysis-card">
             <div class="analysis-title">Répartition des erreurs EVI par moment</div>
             {% if evi_moment_distribution %}
@@ -520,6 +565,18 @@
         </div>
 
         <div class="analysis-card">
+            {% if evi_moment_distribution %}
+                <div class="chart-wrapper">
+                    <canvas id="chart-evi-moment"></canvas>
+                </div>
+            {% else %}
+                <div class="message">Aucune donnée pour le graphique.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-grid" style="margin-top: 1rem;">
+        <div class="analysis-card">
             <div class="analysis-title">Répartition avancée des erreurs EVI</div>
             {% if evi_moment_adv_distribution %}
                 <div class="table-wrapper">
@@ -544,9 +601,19 @@
                 <div class="message">Aucune erreur EVI (avancé) pour les filtres choisis.</div>
             {% endif %}
         </div>
+
+        <div class="analysis-card">
+            {% if evi_moment_adv_distribution %}
+                <div class="chart-wrapper">
+                    <canvas id="chart-evi-moment-adv"></canvas>
+                </div>
+            {% else %}
+                <div class="message">Aucune donnée pour le graphique.</div>
+            {% endif %}
+        </div>
     </div>
 
-    <div class="analysis-grid" style="margin-top: 1rem; grid-template-columns: 1fr 1fr;">
+    <div class="analysis-grid" style="margin-top: 1rem;">
         <div class="analysis-card">
             <div class="analysis-title">Répartition des erreurs DownStream par moment</div>
             {% if ds_moment_distribution %}
@@ -576,6 +643,18 @@
         </div>
 
         <div class="analysis-card">
+            {% if ds_moment_distribution %}
+                <div class="chart-wrapper">
+                    <canvas id="chart-ds-moment"></canvas>
+                </div>
+            {% else %}
+                <div class="message">Aucune donnée pour le graphique.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-grid" style="margin-top: 1rem;">
+        <div class="analysis-card">
             <div class="analysis-title">Répartition avancée des erreurs DownStream</div>
             {% if ds_moment_adv_distribution %}
                 <div class="table-wrapper">
@@ -598,6 +677,16 @@
                 </div>
             {% else %}
                 <div class="message">Aucune erreur DownStream (avancé) pour les filtres choisis.</div>
+            {% endif %}
+        </div>
+
+        <div class="analysis-card">
+            {% if ds_moment_adv_distribution %}
+                <div class="chart-wrapper">
+                    <canvas id="chart-ds-moment-adv"></canvas>
+                </div>
+            {% else %}
+                <div class="message">Aucune donnée pour le graphique.</div>
             {% endif %}
         </div>
     </div>
@@ -657,5 +746,137 @@
                 });
             });
         });
+
+        // Fonction utilitaire pour créer un graphique PIE
+        const createPieChart = (canvasId, labels, data, title) => {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+
+            const colors = [
+                '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6',
+                '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#a855f7',
+                '#84cc16', '#f43f5e', '#22d3ee', '#eab308', '#6366f1'
+            ];
+
+            new Chart(canvas, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors.slice(0, data.length),
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 11
+                                },
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    if (data.labels.length && data.datasets.length) {
+                                        return data.labels.map((label, i) => {
+                                            const value = data.datasets[0].data[i];
+                                            const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                            const percentage = ((value / total) * 100).toFixed(1);
+                                            return {
+                                                text: `${label}: ${value} (${percentage}%)`,
+                                                fillStyle: data.datasets[0].backgroundColor[i],
+                                                hidden: false,
+                                                index: i
+                                            };
+                                        });
+                                    }
+                                    return [];
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(2);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        // Créer les graphiques PIE pour chaque tableau
+        {% if error_type_counts %}
+        createPieChart(
+            'chart-error-types',
+            {{ [row["type_erreur"] for row in error_type_counts] | tojson }},
+            {{ [row["Nb"] for row in error_type_counts] | tojson }},
+            'Répartition des types d\'erreur'
+        );
+        {% endif %}
+
+        {% if moment_counts %}
+        createPieChart(
+            'chart-moments',
+            {{ [row["moment"] for row in moment_counts] | tojson }},
+            {{ [row["Somme de Charge_NOK"] for row in moment_counts] | tojson }},
+            'Moments d\'erreur (EVI + Downstream)'
+        );
+        {% endif %}
+
+        {% if moment_adv_counts %}
+        createPieChart(
+            'chart-moments-adv',
+            {{ [row["moment_avancee"] for row in moment_adv_counts] | tojson }},
+            {{ [row["Somme de Charge_NOK"] for row in moment_adv_counts] | tojson }},
+            'Moments d\'erreur (Avancé)'
+        );
+        {% endif %}
+
+        {% if evi_moment_distribution %}
+        createPieChart(
+            'chart-evi-moment',
+            {{ [row["moment"] for row in evi_moment_distribution] | tojson }},
+            {{ [row["Nb"] for row in evi_moment_distribution] | tojson }},
+            'Répartition des erreurs EVI par moment'
+        );
+        {% endif %}
+
+        {% if evi_moment_adv_distribution %}
+        createPieChart(
+            'chart-evi-moment-adv',
+            {{ [row["moment_avancee"] for row in evi_moment_adv_distribution] | tojson }},
+            {{ [row["Nb"] for row in evi_moment_adv_distribution] | tojson }},
+            'Répartition avancée des erreurs EVI'
+        );
+        {% endif %}
+
+        {% if ds_moment_distribution %}
+        createPieChart(
+            'chart-ds-moment',
+            {{ [row["moment"] for row in ds_moment_distribution] | tojson }},
+            {{ [row["Nb"] for row in ds_moment_distribution] | tojson }},
+            'Répartition des erreurs DownStream par moment'
+        );
+        {% endif %}
+
+        {% if ds_moment_adv_distribution %}
+        createPieChart(
+            'chart-ds-moment-adv',
+            {{ [row["moment_avancee"] for row in ds_moment_adv_distribution] | tojson }},
+            {{ [row["Nb"] for row in ds_moment_adv_distribution] | tojson }},
+            'Répartition avancée des erreurs DownStream'
+        );
+        {% endif %}
     })();
 </script>
