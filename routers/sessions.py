@@ -912,12 +912,12 @@ async def get_error_analysis(
 
         # Ensure the site index survives the reset and is consistently named.
         pivot_table.index.name = "Site"
-        pivot_table = pivot_table.reset_index()
+        pivot_table = pivot_table.reset_index().rename(columns={"_site": "Site"})
 
         pivot_table.columns = [
             "Site"
-            if col == "Site" or col == "_site"
-            else " | ".join(map(str, col)).strip()
+            if col == "Site"
+            else " | ".join(map(str, col)).strip() if isinstance(col, tuple) else str(col)
             for col in pivot_table.columns
         ]
 
