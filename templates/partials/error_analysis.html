@@ -101,6 +101,11 @@
         border-radius: var(--radius-md);
         padding: 0.75rem;
     }
+    .chart-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
     .bar-chart {
         display: flex;
         flex-direction: column;
@@ -598,9 +603,16 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="bar-card" data-bar-source="moment-adv-table">
-                        <div class="pie-title">Graphique</div>
-                        <div class="bar-chart"></div>
+                    <div class="chart-stack">
+                        <div class="pie-card" data-pie-source="moment-adv-table">
+                            <div class="pie-title">Graphique</div>
+                            <div class="pie-chart"></div>
+                            <div class="pie-legend"></div>
+                        </div>
+                        <div class="bar-card" data-bar-source="moment-adv-table">
+                            <div class="pie-title">Barres</div>
+                            <div class="bar-chart"></div>
+                        </div>
                     </div>
                 </div>
         {% else %}
@@ -666,9 +678,16 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="bar-card" data-bar-source="evi-adv-table">
-                        <div class="pie-title">Graphique</div>
-                        <div class="bar-chart"></div>
+                    <div class="chart-stack">
+                        <div class="pie-card" data-pie-source="evi-adv-table">
+                            <div class="pie-title">Graphique</div>
+                            <div class="pie-chart"></div>
+                            <div class="pie-legend"></div>
+                        </div>
+                        <div class="bar-card" data-bar-source="evi-adv-table">
+                            <div class="pie-title">Barres</div>
+                            <div class="bar-chart"></div>
+                        </div>
                     </div>
                 </div>
             {% else %}
@@ -735,9 +754,16 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="bar-card" data-bar-source="ds-adv-table">
-                        <div class="pie-title">Graphique</div>
-                        <div class="bar-chart"></div>
+                    <div class="chart-stack">
+                        <div class="pie-card" data-pie-source="ds-adv-table">
+                            <div class="pie-title">Graphique</div>
+                            <div class="pie-chart"></div>
+                            <div class="pie-legend"></div>
+                        </div>
+                        <div class="bar-card" data-bar-source="ds-adv-table">
+                            <div class="pie-title">Barres</div>
+                            <div class="bar-chart"></div>
+                        </div>
                     </div>
                 </div>
             {% else %}
