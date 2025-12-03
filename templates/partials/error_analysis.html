@@ -1,0 +1,299 @@
+<style>
+    .analysis-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 1rem;
+    }
+    .analysis-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        padding: 1rem;
+        box-shadow: var(--shadow-sm);
+    }
+    .analysis-title {
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: var(--color-text);
+    }
+    .table-wrapper {
+        overflow-x: auto;
+        margin-top: 0.5rem;
+    }
+    .analysis-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+    .analysis-table th,
+    .analysis-table td {
+        border: 1px solid var(--color-border);
+        padding: 0.5rem;
+        text-align: left;
+    }
+    .analysis-table th {
+        background: #f8fafc;
+        color: var(--color-text-muted);
+        font-weight: 600;
+    }
+    .analysis-table tbody tr:nth-child(even) {
+        background: #f9fafb;
+    }
+    .message {
+        padding: 0.75rem 1rem;
+        background: var(--color-info-light);
+        color: #1d4ed8;
+        border-radius: var(--radius-md);
+        border: 1px solid #bfdbfe;
+        margin: 0.5rem 0;
+    }
+</style>
+
+<div class="section-title">🔍 Analyse des erreurs</div>
+
+{% if no_data %}
+    <div class="message">Aucune donnée pour la période et les filtres sélectionnés.</div>
+{% elif no_errors %}
+    <div class="message">Aucune erreur à afficher pour ce périmètre.</div>
+{% else %}
+    <div class="analysis-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="analysis-card">
+            <div class="analysis-title">Top 3 erreurs (EVI + Downstream)</div>
+            {% if top_all %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th>Moment</th>
+                                <th>Step</th>
+                                <th>Code</th>
+                                <th>Type</th>
+                                <th>Occurrences</th>
+                                <th>%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in top_all %}
+                            <tr>
+                                <td>{{ row.moment_label }}</td>
+                                <td>{{ row.step }}</td>
+                                <td>{{ row.code }}</td>
+                                <td>{{ row.type }}</td>
+                                <td style="text-align:right;">{{ row.Occurrences }}</td>
+                                <td style="text-align:right;">{{ '%.2f'|format(row.percent) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur combinée.</div>
+            {% endif %}
+        </div>
+        <div class="analysis-card">
+            <div class="analysis-title">Détail Top 3 par site</div>
+            {% if detail_all %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th>Site</th>
+                                <th>Type</th>
+                                <th>Moment</th>
+                                <th>Step</th>
+                                <th>Code</th>
+                                <th>Occurrences</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in detail_all %}
+                            <tr>
+                                <td>{{ row.Site }}</td>
+                                <td>{{ row.type }}</td>
+                                <td>{{ row.moment_label }}</td>
+                                <td>{{ row.step }}</td>
+                                <td>{{ row.code }}</td>
+                                <td style="text-align:right;">{{ row.Occurrences }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucun détail disponible.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-grid">
+        <div class="analysis-card">
+            <div class="analysis-title">Top 3 erreurs EVI</div>
+            {% if top_evi %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th>Moment</th>
+                                <th>Step</th>
+                                <th>Code EVI</th>
+                                <th>Occurrences</th>
+                                <th>%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in top_evi %}
+                            <tr>
+                                <td>{{ row.moment_label }}</td>
+                                <td>{{ row.step }}</td>
+                                <td>{{ row.code }}</td>
+                                <td style="text-align:right;">{{ row.Occurrences }}</td>
+                                <td style="text-align:right;">{{ '%.2f'|format(row.percent) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur EVI trouvée.</div>
+            {% endif %}
+        </div>
+        <div class="analysis-card">
+            <div class="analysis-title">Détail EVI Top 3 par site</div>
+            {% if detail_evi %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th>Site</th>
+                                <th>Moment</th>
+                                <th>Step</th>
+                                <th>Code EVI</th>
+                                <th>Occurrences</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in detail_evi %}
+                            <tr>
+                                <td>{{ row.Site }}</td>
+                                <td>{{ row.moment_label }}</td>
+                                <td>{{ row.step }}</td>
+                                <td>{{ row.code }}</td>
+                                <td style="text-align:right;">{{ row.Occurrences }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucun détail EVI disponible.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-grid">
+        <div class="analysis-card">
+            <div class="analysis-title">Top 3 erreurs Downstream</div>
+            {% if top_ds %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th>Moment</th>
+                                <th>Step</th>
+                                <th>Code PC</th>
+                                <th>Occurrences</th>
+                                <th>%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in top_ds %}
+                            <tr>
+                                <td>{{ row.moment_label }}</td>
+                                <td>{{ row.step }}</td>
+                                <td>{{ row.code }}</td>
+                                <td style="text-align:right;">{{ row.Occurrences }}</td>
+                                <td style="text-align:right;">{{ '%.2f'|format(row.percent) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur Downstream trouvée.</div>
+            {% endif %}
+        </div>
+        <div class="analysis-card">
+            <div class="analysis-title">Détail Downstream Top 3 par site</div>
+            {% if detail_ds %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th>Site</th>
+                                <th>Moment</th>
+                                <th>Step</th>
+                                <th>Code PC</th>
+                                <th>Occurrences</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in detail_ds %}
+                            <tr>
+                                <td>{{ row.Site }}</td>
+                                <td>{{ row.moment_label }}</td>
+                                <td>{{ row.step }}</td>
+                                <td>{{ row.code }}</td>
+                                <td style="text-align:right;">{{ row.Occurrences }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucun détail Downstream disponible.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-card" style="margin-top: 1rem;">
+        <div class="analysis-title">Résumé par site et phase</div>
+        {% if site_summary %}
+            <div class="table-wrapper">
+                <table class="analysis-table">
+                    <thead>
+                        <tr>
+                            <th>Site</th>
+                            <th>Total</th>
+                            <th>OK</th>
+                            <th>NOK</th>
+                            <th>% Réussite</th>
+                            <th>% Erreurs</th>
+                            <th>Nb Avant charge</th>
+                            <th>Nb Charge</th>
+                            <th>Nb Fin de charge</th>
+                            <th>Nb Unknown</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in site_summary %}
+                        <tr>
+                            <td>{{ row["Site"] }}</td>
+                            <td style="text-align:right;">{{ row["Total_Charges"] }}</td>
+                            <td style="text-align:right;">{{ row["Charges_OK"] }}</td>
+                            <td style="text-align:right;">{{ row["Charges_NOK"] }}</td>
+                            <td style="text-align:right;">{{ '%.2f'|format(row['% Réussite']) }}</td>
+                            <td style="text-align:right;">{{ '%.2f'|format(row['% Erreurs']) }}</td>
+                            <td style="text-align:right;">{{ row["Avant charge"] }}</td>
+                            <td style="text-align:right;">{{ row["Charge"] }}</td>
+                            <td style="text-align:right;">{{ row["Fin de charge"] }}</td>
+                            <td style="text-align:right;">{{ row["Unknown"] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="message">Aucun résumé par site disponible.</div>
+        {% endif %}
+    </div>
+{% endif %}
