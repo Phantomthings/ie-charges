@@ -97,28 +97,22 @@
         </div>
         <div class="analysis-card">
             <div class="analysis-title">Détail Top 3 par site</div>
-            {% if detail_all %}
+            {% if detail_all_pivot.columns %}
                 <div class="table-wrapper">
                     <table class="analysis-table">
                         <thead>
                             <tr>
-                                <th data-sortable="true">Site</th>
-                                <th data-sortable="true">Type</th>
-                                <th data-sortable="true">Moment</th>
-                                <th data-sortable="true">Step</th>
-                                <th data-sortable="true">Code</th>
-                                <th data-sortable="true" data-type="number">Occurrences</th>
+                                {% for col in detail_all_pivot.columns %}
+                                    <th data-sortable="true" {% if col != 'Site' %}data-type="number"{% endif %}>{{ col }}</th>
+                                {% endfor %}
                             </tr>
                         </thead>
                         <tbody>
-                            {% for row in detail_all %}
+                            {% for row in detail_all_pivot.rows %}
                             <tr>
-                                <td>{{ row.Site }}</td>
-                                <td>{{ row.type }}</td>
-                                <td>{{ row.moment_label }}</td>
-                                <td>{{ row.step }}</td>
-                                <td>{{ row.code }}</td>
-                                <td style="text-align:right;" data-sort-value="{{ row.Occurrences }}">{{ row.Occurrences }}</td>
+                                {% for col in detail_all_pivot.columns %}
+                                    <td style="text-align: {{ 'left' if col == 'Site' else 'right' }};">{{ row[col] }}</td>
+                                {% endfor %}
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -164,26 +158,22 @@
         </div>
         <div class="analysis-card">
             <div class="analysis-title">Détail EVI Top 3 par site</div>
-            {% if detail_evi %}
+            {% if detail_evi_pivot.columns %}
                 <div class="table-wrapper">
                     <table class="analysis-table">
                         <thead>
                             <tr>
-                                <th data-sortable="true">Site</th>
-                                <th data-sortable="true">Moment</th>
-                                <th data-sortable="true">Step</th>
-                                <th data-sortable="true">Code EVI</th>
-                                <th data-sortable="true" data-type="number">Occurrences</th>
+                                {% for col in detail_evi_pivot.columns %}
+                                    <th data-sortable="true" {% if col != 'Site' %}data-type="number"{% endif %}>{{ col }}</th>
+                                {% endfor %}
                             </tr>
                         </thead>
                         <tbody>
-                            {% for row in detail_evi %}
+                            {% for row in detail_evi_pivot.rows %}
                             <tr>
-                                <td>{{ row.Site }}</td>
-                                <td>{{ row.moment_label }}</td>
-                                <td>{{ row.step }}</td>
-                                <td>{{ row.code }}</td>
-                                <td style="text-align:right;" data-sort-value="{{ row.Occurrences }}">{{ row.Occurrences }}</td>
+                                {% for col in detail_evi_pivot.columns %}
+                                    <td style="text-align: {{ 'left' if col == 'Site' else 'right' }};">{{ row[col] }}</td>
+                                {% endfor %}
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -229,26 +219,22 @@
         </div>
         <div class="analysis-card">
             <div class="analysis-title">Détail Downstream Top 3 par site</div>
-            {% if detail_ds %}
+            {% if detail_ds_pivot.columns %}
                 <div class="table-wrapper">
                     <table class="analysis-table">
                         <thead>
                             <tr>
-                                <th data-sortable="true">Site</th>
-                                <th data-sortable="true">Moment</th>
-                                <th data-sortable="true">Step</th>
-                                <th data-sortable="true">Code PC</th>
-                                <th data-sortable="true" data-type="number">Occurrences</th>
+                                {% for col in detail_ds_pivot.columns %}
+                                    <th data-sortable="true" {% if col != 'Site' %}data-type="number"{% endif %}>{{ col }}</th>
+                                {% endfor %}
                             </tr>
                         </thead>
                         <tbody>
-                            {% for row in detail_ds %}
+                            {% for row in detail_ds_pivot.rows %}
                             <tr>
-                                <td>{{ row.Site }}</td>
-                                <td>{{ row.moment_label }}</td>
-                                <td>{{ row.step }}</td>
-                                <td>{{ row.code }}</td>
-                                <td style="text-align:right;" data-sort-value="{{ row.Occurrences }}">{{ row.Occurrences }}</td>
+                                {% for col in detail_ds_pivot.columns %}
+                                    <td style="text-align: {{ 'left' if col == 'Site' else 'right' }};">{{ row[col] }}</td>
+                                {% endfor %}
                             </tr>
                             {% endfor %}
                         </tbody>
