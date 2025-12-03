@@ -61,10 +61,6 @@
             align-items: flex-start;
             flex-wrap: wrap;
         }
-
-        .site-filter-row {
-            align-items: stretch;
-        }
         
         .filter-label {
             font-size: 0.85rem;
@@ -86,30 +82,6 @@
             max-height: 100px;
             overflow-y: auto;
             flex: 1;
-        }
-
-        .tag.muted {
-            background: #e2e8f0;
-            border-color: #cbd5e1;
-            color: #475569;
-        }
-
-        .site-select-wrapper {
-            display: flex;
-            flex-direction: column;
-            gap: 0.35rem;
-            min-width: 260px;
-            max-width: 360px;
-        }
-
-        .site-multiselect {
-            height: 130px;
-            padding: 0.4rem;
-        }
-
-        .site-actions {
-            display: flex;
-            gap: 0.5rem;
         }
         
         .tag {
@@ -524,16 +496,8 @@
     <main class="main">
         <section class="filters">
             <!-- Sites -->
-            <div class="filter-row site-filter-row">
-                <div class="site-select-wrapper">
-                    <div class="filter-label">🔎 Sélection des sites</div>
-                    <input class="select-input" id="site-search" type="text" placeholder="Rechercher un site" oninput="filterSiteOptions()">
-                    <select class="select-input site-multiselect" id="site-select" multiple onchange="onSitesSelectChange()"></select>
-                    <div class="site-actions">
-                        <button class="btn" onclick="toggleAllSites()" id="btn-all-sites">☐ Tous les sites</button>
-                        <button class="btn" type="button" onclick="clearSites()">Effacer</button>
-                    </div>
-                </div>
+            <div class="filter-row">
+                <button class="btn" onclick="toggleAllSites()" id="btn-all-sites">☑ Tous les sites</button>
                 <div class="tags-box" id="sites-tags"></div>
             </div>
             
@@ -682,61 +646,25 @@
             const res = await fetch('/api/filters/sites');
             const data = await res.json();
             state.allSites = data.sites || [];
-            state.sites = [];
-            populateSiteSelect();
+            state.sites = [...state.allSites];
             renderSites();
         }
-
+        
         function renderSites() {
-            const tagsBox = document.getElementById('sites-tags');
-            if (!state.sites.length) {
-                tagsBox.innerHTML = '<span class="tag muted">Aucun site sélectionné</span>';
-            } else {
-                tagsBox.innerHTML = state.sites.map(s =>
-                    `<span class="tag">${s} <button class="tag-remove" onclick="removeSite('${s}')">×</button></span>`
-                ).join('');
-            }
-            document.getElementById('btn-all-sites').textContent =
-                state.sites.length && state.sites.length === state.allSites.length ? '☑ Tous les sites' : '☐ Tous les sites';
+            document.getElementById('sites-tags').innerHTML = state.sites.map(s => 
+                `<span class="tag">${s} <button class="tag-remove" onclick="removeSite('${s}')">×</button></span>`
+            ).join('');
+            document.getElementById('btn-all-sites').textContent = 
+                state.sites.length === state.allSites.length ? '☑ Tous les sites' : '☐ Tous les sites';
             document.getElementById('sum-sites').textContent = state.sites.length;
-            populateSiteSelect(document.getElementById('site-search').value);
         }
-
+        
         function toggleAllSites() {
             state.sites = state.sites.length === state.allSites.length ? [] : [...state.allSites];
             renderSites();
             onFiltersChange();
         }
-
-        function clearSites() {
-            state.sites = [];
-            renderSites();
-            onFiltersChange();
-        }
-
-        function populateSiteSelect(term = '') {
-            const select = document.getElementById('site-select');
-            if (!select) return;
-            const normalized = term.toLowerCase();
-            const options = state.allSites
-                .filter(s => state.sites.includes(s) || !normalized || s.toLowerCase().includes(normalized))
-                .map(s => `<option value="${s}" ${state.sites.includes(s) ? 'selected' : ''}>${s}</option>`)
-                .join('');
-            select.innerHTML = options;
-        }
-
-        function onSitesSelectChange() {
-            const select = document.getElementById('site-select');
-            state.sites = Array.from(select.selectedOptions).map(o => o.value);
-            renderSites();
-            onFiltersChange();
-        }
-
-        function filterSiteOptions() {
-            const term = document.getElementById('site-search').value;
-            populateSiteSelect(term);
-        }
-
+        
         function removeSite(site) {
             state.sites = state.sites.filter(s => s !== site);
             renderSites();
@@ -746,7 +674,7 @@
         // Load filter options
         async function loadFilterOptions() {
             const params = new URLSearchParams();
-            if (state.sites.length && state.sites.length < state.allSites.length) params.set('sites', state.sites.join(','));
+            if (state.sites.length < state.allSites.length) params.set('sites', state.sites.join(','));
             if (state.dateDebut) params.set('date_debut', state.dateDebut);
             if (state.dateFin) params.set('date_fin', state.dateFin);
             
@@ -898,12 +826,6 @@
         
         function refreshTab() {
             const tabContent = document.getElementById('tab-content');
-            if (!state.sites.length) {
-                if (tabContent) {
-                    tabContent.innerHTML = `<div class="empty-state"><div class="empty-icon">👆</div><div>Sélectionnez au moins un site pour charger les données.</div></div>`;
-                }
-                return;
-            }
             if (tabContent) {
                 tabContent.innerHTML = `<div class="loading"><span class="spinner"></span> Chargement...</div>`;
             }
