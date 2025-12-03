@@ -87,6 +87,27 @@ def _apply_status_filters(df: pd.DataFrame, error_type_list: list[str], moment_l
     return df
 
 
+def _map_moment_label(val: int) -> str:
+    try:
+        v = int(val)
+    except Exception:
+        return "Unknown"
+
+    if v == 0:
+        return "Fin de charge"
+    if 1 <= v <= 2:
+        return "Init"
+    if 4 <= v <= 6:
+        return "Lock Connector"
+    if v == 7:
+        return "CableCheck"
+    if v == 8:
+        return "Charge"
+    if v > 8:
+        return "Fin de charge"
+    return "Unknown"
+
+
 def _comparaison_base_context(
     request: Request,
     filters: dict,
@@ -408,6 +429,241 @@ async def get_sessions_stats(
             "vehicle_stats": vehicle_stats,
             "vehicle_debug_info": vehicle_debug_info,
         }
+    )
+
+
+@router.get("/sessions/projection")
+async def get_sessions_projection(
+    request: Request,
+    sites: str = Query(default=""),
+    date_debut: date = Query(default=None),
+    date_fin: date = Query(default=None),
+    error_types: str = Query(default=""),
+    moments: str = Query(default=""),
+):
+    error_type_list = [e.strip() for e in error_types.split(",") if e.strip()] if error_types else []
+    moment_list = [m.strip() for m in moments.split(",") if m.strip()] if moments else []
+
+    where_clause, params = _build_conditions(sites, date_debut, date_fin, table_alias="k")
+
+    sql = f"""
+        SELECT
+            k.Site,
+            k.PDC,
+            k.`State of charge(0:good, 1:error)` as state,
+            k.type_erreur,
+            k.moment,
+            k.`EVI Error Code`,
+            k.`Downstream Code PC`,
+            k.`EVI Status during error`
+        FROM kpi_sessions k
+        WHERE {where_clause}
+    """
+
+    df = query_df(sql, params)
+
+    if df.empty:
+        return templates.TemplateResponse(
+            "partials/projection.html",
+            {"request": request, "no_data": True},
+        )
+
+    df["is_ok"] = pd.to_numeric(df["state"], errors="coerce").fillna(0).astype(int).eq(0)
+    df = _apply_status_filters(df, error_type_list, moment_list)
+
+    err = df[~df["is_ok_filt"]].copy()
+    if err.empty:
+        return templates.TemplateResponse(
+            "partials/projection.html",
+            {"request": request, "no_errors": True},
+        )
+
+    evi_step = pd.to_numeric(
+        err.get("EVI Status during error", pd.Series(np.nan, index=err.index)),
+        errors="coerce",
+    )
+    evi_code = pd.to_numeric(
+        err.get("EVI Error Code", pd.Series(np.nan, index=err.index)), errors="coerce"
+    ).fillna(0).astype(int)
+    ds_pc = pd.to_numeric(
+        err.get("Downstream Code PC", pd.Series(np.nan, index=err.index)), errors="coerce"
+    ).fillna(0).astype(int)
+    moment_raw = err.get("moment", pd.Series(None, index=err.index))
+
+    def resolve_moment_label(idx: int) -> str:
+        label = None
+        step_val = evi_step.loc[idx] if idx in evi_step.index else np.nan
+        raw_val = moment_raw.loc[idx] if idx in moment_raw.index else None
+
+        if pd.notna(step_val):
+            label = _map_moment_label(step_val)
+        if (not label or label == "Unknown") and isinstance(raw_val, str) and raw_val.strip():
+            label = raw_val.strip()
+        return label or "Unknown"
+
+    err["moment_label"] = [resolve_moment_label(i) for i in err.index]
+
+    sub_evi_mask = (ds_pc.eq(8192)) | (ds_pc.eq(0) & evi_code.ne(0))
+    sub_ds_mask = ds_pc.ne(0) & ds_pc.ne(8192)
+
+    sub_evi = err.loc[sub_evi_mask].copy()
+    sub_evi["step_num"] = evi_step.loc[sub_evi.index]
+    sub_evi["code_num"] = evi_code.loc[sub_evi.index]
+
+    sub_ds = err.loc[sub_ds_mask].copy()
+    sub_ds["step_num"] = evi_step.loc[sub_ds.index]
+    sub_ds["code_num"] = ds_pc.loc[sub_ds.index]
+
+    evi_long = pd.concat([sub_evi, sub_ds], ignore_index=True)
+
+    if evi_long.empty:
+        return templates.TemplateResponse(
+            "partials/projection.html",
+            {"request": request, "no_errors": True},
+        )
+
+    evi_long["Site"] = evi_long.get("Site", "").fillna("")
+    evi_long["PDC"] = evi_long.get("PDC", "").fillna("").astype(str)
+    evi_long["moment_label"] = evi_long["moment_label"].fillna("Unknown")
+
+    unique_moments = evi_long["moment_label"].dropna().unique().tolist()
+    moments_sorted = [m for m in MOMENT_ORDER if m in unique_moments]
+    moments_sorted += [m for m in sorted(unique_moments) if m not in moments_sorted]
+
+    columns: list[tuple[str, int]] = []
+    for m in moments_sorted:
+        codes = (
+            evi_long.loc[evi_long["moment_label"].eq(m), "code_num"]
+            .dropna()
+            .astype(int)
+            .unique()
+            .tolist()
+        )
+        for code in sorted(codes):
+            columns.append((m, int(code)))
+
+    if not columns:
+        return templates.TemplateResponse(
+            "partials/projection.html",
+            {"request": request, "no_errors": True},
+        )
+
+    column_template = pd.MultiIndex.from_tuples(columns, names=["moment", "code"])
+
+    column_headers = [
+        {"moment": moment, "code": code}
+        for moment, code in columns
+    ]
+
+    moment_headers: list[dict] = []
+    for moment in moments_sorted:
+        span = sum(1 for m, _ in columns if m == moment)
+        if span:
+            moment_headers.append({"moment": moment, "span": span})
+
+    sites_payload: list[dict] = []
+    site_list = sorted(evi_long["Site"].dropna().unique().tolist())
+
+    for site in site_list:
+        site_rows = evi_long[evi_long["Site"].eq(site)].copy()
+        if site_rows.empty:
+            continue
+
+        base_site = df[df["Site"] == site].copy()
+        total_site = len(base_site)
+        ok_site = int(base_site["is_ok"].sum()) if not base_site.empty else 0
+        success_rate = round(ok_site / total_site * 100, 1) if total_site else 0.0
+
+        has_pdc = "PDC" in site_rows.columns and site_rows["PDC"].replace("", np.nan).notna().any()
+
+        if has_pdc:
+            g_pdc = (
+                site_rows.groupby(["PDC", "moment_label", "code_num"]).size().rename("Nb").reset_index()
+            )
+            g_tot = site_rows.groupby(["moment_label", "code_num"]).size().rename("Nb").reset_index()
+            g_tot["PDC"] = "__TOTAL__"
+            full = pd.concat([g_tot, g_pdc], ignore_index=True)
+
+            pv = full.pivot_table(
+                index="PDC",
+                columns=["moment_label", "code_num"],
+                values="Nb",
+                fill_value=0,
+                aggfunc="sum",
+            )
+
+            pv = pv.reindex(columns=column_template, fill_value=0)
+
+            pdcs = sorted(pv.index.tolist(), key=str)
+            if "__TOTAL__" in pdcs:
+                pdcs.remove("__TOTAL__")
+                pdcs = ["__TOTAL__"] + pdcs
+            pv = pv.reindex(pdcs)
+
+            df_disp = pv.reset_index()
+            df_disp["label"] = np.where(
+                df_disp["PDC"].eq("__TOTAL__"), f"{site} (TOTAL)", "   " + df_disp["PDC"].astype(str)
+            )
+            df_disp = df_disp.drop(columns=["PDC"], errors="ignore")
+        else:
+            g_site = site_rows.groupby(["moment_label", "code_num"]).size().rename("Nb").reset_index()
+            pv = g_site.pivot_table(
+                index=pd.Index([site], name="Site"),
+                columns=["moment_label", "code_num"],
+                values="Nb",
+                fill_value=0,
+                aggfunc="sum",
+            )
+            pv = pv.reindex(columns=column_template, fill_value=0)
+
+            df_disp = pv.reset_index(drop=True)
+            df_disp["label"] = f"{site} (TOTAL)"
+
+        value_cols = list(column_template)
+        numeric_values = df_disp[value_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
+        df_disp["row_total"] = numeric_values.sum(axis=1).astype(int)
+
+        total_general_value = int(numeric_values.sum().sum())
+        df_disp["row_percent"] = np.where(
+            total_general_value > 0,
+            (df_disp["row_total"] / total_general_value * 100).round(1),
+            0.0,
+        )
+
+        rows = [
+            {
+                "label": str(r["label"]),
+                "values": [int(r[col]) if pd.notna(r[col]) else 0 for col in value_cols],
+                "total": int(r["row_total"]),
+                "percent": float(r["row_percent"]),
+            }
+            for _, r in df_disp.iterrows()
+        ]
+
+        sites_payload.append(
+            {
+                "site": site,
+                "success_rate": success_rate,
+                "total_site": total_site,
+                "ok_site": ok_site,
+                "columns": column_headers,
+                "moment_headers": moment_headers,
+                "rows": rows,
+            }
+        )
+
+    if not sites_payload:
+        return templates.TemplateResponse(
+            "partials/projection.html",
+            {"request": request, "no_errors": True},
+        )
+
+    return templates.TemplateResponse(
+        "partials/projection.html",
+        {
+            "request": request,
+            "sites": sites_payload,
+        },
     )
 
 
