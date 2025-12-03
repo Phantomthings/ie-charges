@@ -886,60 +886,57 @@ async def get_error_analysis(
         .assign(Charges_NOK=lambda d: d["Total_Charges"] - d["Charges_OK"])
     )
 
-    def _build_pivot_table(detail_df: pd.DataFrame, by_site: pd.DataFrame) -> dict[str, Any]:
-        if detail_df.empty:
-            return {"columns": [], "rows": []}
+def _build_pivot_table(detail_df: pd.DataFrame, by_site: pd.DataFrame) -> dict[str, Any]:
+    if detail_df.empty:
+        return {"columns": [], "rows": []}
 
-        pivot_df = detail_df.assign(
-            _site=detail_df["Site"],
-            _type=detail_df.get("type", ""),
-            _moment=detail_df["moment_label"],
-            _step=detail_df["step"],
-            _code=detail_df["code"],
-        )
+    pivot_df = detail_df.assign(
+        _site=detail_df["Site"],
+        _type=detail_df.get("type", ""),
+        _moment=detail_df["moment_label"],
+        _step=detail_df["step"],
+        _code=detail_df["code"],
+    )
 
-        pivot_table = pd.pivot_table(
-            pivot_df,
-            index="_site",
-            columns=["_type", "_moment", "_step", "_code"],
-            aggfunc="size",
-            fill_value=0,
-        ).sort_index(axis=1)
+    pivot_table = pd.pivot_table(
+        pivot_df,
+        index="_site",
+        columns=["_type", "_moment", "_step", "_code"],
+        aggfunc="size",
+        fill_value=0,
+    ).sort_index(axis=1)
 
-        # 👇 1. Reset index pour avoir "Site" comme colonne (robuste aux variations de nom)
-        pivot_table = pivot_table.reset_index()
-        pivot_table = pivot_table.rename(columns={"_site": "Site", "index": "Site"})
-        if "Site" not in pivot_table.columns:
-            pivot_table.insert(0, "Site", pivot_df["_site"].unique())
+    pivot_table = pivot_table.reset_index().rename(columns={"_site": "Site"})
 
-        # 👇 2. APLATIR le MultiIndex des colonnes AVANT le merge
-        pivot_table.columns = [
-            "Site" if col == "Site" else " | ".join(map(str, col)).strip()
-            if isinstance(col, tuple) else str(col)
-            for col in pivot_table.columns
-        ]
+    pivot_table.columns = [
+        "Site" if col == "Site" else " | ".join(map(str, col)).strip()
+        if isinstance(col, tuple) else str(col)
+        for col in pivot_table.columns
+    ]
 
-        # 👇 3. MAINTENANT on peut merger (colonnes plates des deux côtés)
-        pivot_table = pivot_table.merge(
-            by_site.rename(columns={"Total_Charges": "Total Charges"})[["Site", "Total Charges"]],
-            on="Site",
-            how="left",
-        )
+    if "Site" not in by_site.columns:
+        by_site = by_site.reset_index()
 
-        # 👇 4. Réorganiser les colonnes
-        ordered_columns = ["Site", "Total Charges"] + [
-            col for col in pivot_table.columns if col not in {"Site", "Total Charges"}
-        ]
-        pivot_table = pivot_table[ordered_columns].fillna(0)
+    pivot_table = pivot_table.merge(
+        by_site[["Site", "Total_Charges"]].rename(columns={"Total_Charges": "Total Charges"}),
+        on="Site",
+        how="left",
+    )
 
-        # 👇 5. Convertir en int les colonnes numériques
-        numeric_cols = [col for col in pivot_table.columns if col != "Site"]
-        pivot_table[numeric_cols] = pivot_table[numeric_cols].astype(int)
+    # 5. Réorganiser les colonnes
+    ordered_columns = ["Site", "Total Charges"] + [
+        col for col in pivot_table.columns if col not in {"Site", "Total Charges"}
+    ]
+    pivot_table = pivot_table[ordered_columns].fillna(0)
 
-        return {
-            "columns": pivot_table.columns.tolist(),
-            "rows": pivot_table.to_dict("records"),
-        }
+    # 6. Convertir les colonnes numériques en int
+    numeric_cols = [col for col in pivot_table.columns if col != "Site"]
+    pivot_table[numeric_cols] = pivot_table[numeric_cols].astype(int)
+
+    return {
+        "columns": pivot_table.columns.tolist(),
+        "rows": pivot_table.to_dict("records"),
+    }
     all_err = pd.concat([sub_evi, sub_ds], ignore_index=True)
 
     top_all: list[dict[str, Any]] = []
