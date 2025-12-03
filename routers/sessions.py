@@ -140,6 +140,10 @@ def _build_pivot_table(detail_df: pd.DataFrame, by_site: pd.DataFrame) -> dict[s
     if detail_df.empty:
         return {"columns": [], "rows": []}
 
+    # Ensure Site column exists
+    if "Site" not in detail_df.columns:
+        return {"columns": [], "rows": []}
+
     pivot_df = detail_df.assign(
         _site=detail_df["Site"],
         _type=detail_df.get("type", ""),
@@ -156,13 +160,34 @@ def _build_pivot_table(detail_df: pd.DataFrame, by_site: pd.DataFrame) -> dict[s
         fill_value=0,
     ).sort_index(axis=1)
 
-    pivot_table = pivot_table.reset_index().rename(columns={"_site": "Site"})
+    # Reset index and handle column names properly
+    pivot_table = pivot_table.reset_index()
 
-    pivot_table.columns = [
-        "Site" if col == "Site" else " | ".join(map(str, col)).strip()
-        if isinstance(col, tuple) else str(col)
-        for col in pivot_table.columns
-    ]
+    # Flatten column names if they are MultiIndex
+    if isinstance(pivot_table.columns, pd.MultiIndex):
+        pivot_table.columns = [
+            col[0] if col[0] in ["_site", "Site"] else " | ".join(str(c) for c in col if c).strip()
+            for col in pivot_table.columns
+        ]
+
+    # Rename _site to Site
+    if "_site" in pivot_table.columns:
+        pivot_table = pivot_table.rename(columns={"_site": "Site"})
+
+    # Process column names to format tuples with " | " separator
+    new_columns = []
+    for col in pivot_table.columns:
+        if col == "Site":
+            new_columns.append("Site")
+        elif isinstance(col, tuple):
+            new_columns.append(" | ".join(map(str, col)).strip())
+        else:
+            new_columns.append(str(col))
+    pivot_table.columns = new_columns
+
+    # Verify Site column exists before merging
+    if "Site" not in pivot_table.columns:
+        return {"columns": [], "rows": []}
 
     if "Site" not in by_site.columns:
         by_site = by_site.reset_index()
