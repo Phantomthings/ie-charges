@@ -20,31 +20,73 @@ async def get_suspicious(
     """Transactions suspectes (<1 kWh)"""
     sql = "SELECT * FROM kpi_suspicious_under_1kwh"
     df = query_df(sql)
-    
-    if not df.empty and "Datetime start" in df.columns:
-        df["Datetime start"] = pd.to_datetime(df["Datetime start"], errors="coerce")
-        
-        if date_debut:
-            df = df[df["Datetime start"] >= pd.Timestamp(date_debut)]
-        if date_fin:
-            df = df[df["Datetime start"] < pd.Timestamp(date_fin) + pd.Timedelta(days=1)]
-        
+
+    if not df.empty:
+        if "Datetime start" in df.columns:
+            df["Datetime start"] = pd.to_datetime(df["Datetime start"], errors="coerce")
+
+            if date_debut:
+                df = df[df["Datetime start"] >= pd.Timestamp(date_debut)]
+            if date_fin:
+                df = df[df["Datetime start"] < pd.Timestamp(date_fin) + pd.Timedelta(days=1)]
+
         if sites and "Site" in df.columns:
             site_list = [s.strip() for s in sites.split(",") if s.strip()]
             if site_list:
                 df = df[df["Site"].isin(site_list)]
-    
-    nb = len(df)
-    status = "danger" if nb > 5 else ("warning" if nb > 0 else "success")
-    
+
+        if "Datetime start" in df.columns:
+            df = df.sort_values("Datetime start")
+
+    def format_ts(value):
+        if pd.isna(value):
+            return ""
+        try:
+            ts = pd.to_datetime(value, errors="coerce")
+            return ts.strftime("%Y-%m-%d %H:%M") if not pd.isna(ts) else ""
+        except Exception:
+            return str(value)
+
+    def to_str(value):
+        if pd.isna(value):
+            return ""
+        return str(value)
+
+    def to_float(value):
+        if pd.isna(value):
+            return ""
+        try:
+            return round(float(value), 3)
+        except Exception:
+            return value
+
+    rows = []
+    if not df.empty:
+        for idx, (_, row) in enumerate(df.iterrows(), start=1):
+            charge_id = to_str(row.get("ID", ""))
+            rows.append(
+                {
+                    "rank": idx,
+                    "id": charge_id,
+                    "url": f"{BASE_CHARGE_URL}{charge_id}" if charge_id else "",
+                    "site": row.get("Site", ""),
+                    "pdc": to_str(row.get("PDC", "")),
+                    "mac": row.get("MAC Address", ""),
+                    "vehicle": row.get("Vehicle", ""),
+                    "start": format_ts(row.get("Datetime start")),
+                    "end": format_ts(row.get("Datetime end")),
+                    "energy": to_float(row.get("Energy (Kwh)")),
+                    "soc_start": to_float(row.get("SOC Start")),
+                    "soc_end": to_float(row.get("SOC End")),
+                }
+            )
+
     return templates.TemplateResponse(
-        "partials/kpi_card.html",
+        "partials/suspicious.html",
         {
             "request": request,
-            "value": nb,
-            "label": "Transactions <1 kWh",
-            "status": status,
-        }
+            "rows": rows,
+        },
     )
 
 
