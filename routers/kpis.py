@@ -1,8 +1,3 @@
-"""
-Router pour les KPIs génériques
-Endpoints pour transactions suspectes, tentatives multiples, etc.
-"""
-
 from fastapi import APIRouter, Request, Query
 from fastapi.templating import Jinja2Templates
 from datetime import date
@@ -115,29 +110,6 @@ async def get_multi_attempts(
 
     table_rows = []
     if not df.empty:
-        def resolve_column(possible_names):
-            for name in possible_names:
-                if name in df.columns:
-                    return name
-            return None
-
-        first_attempt_col = resolve_column(
-            [
-                "1ère tentative",
-                "1ere tentative",
-                "1Ã¨re tentative",
-                "Première tentative",
-                "Premiere tentative",
-            ]
-        )
-        last_attempt_col = resolve_column(
-            [
-                "Dernière tentative",
-                "Derniere tentative",
-                "DerniÃ¨re tentative",
-            ]
-        )
-
         for idx, (_, row) in enumerate(df.iterrows(), start=1):
             date_value = row.get("Date_heure")
             hour_value = row.get("Heure")
@@ -157,8 +129,8 @@ async def get_multi_attempts(
                     "vehicle": row.get("Vehicle", ""),
                     "tentatives": tentatives,
                     "pdc": row.get("PDC(s)", ""),
-                    "first_attempt": format_ts(row.get(first_attempt_col)) if first_attempt_col else "",
-                    "last_attempt": format_ts(row.get(last_attempt_col)) if last_attempt_col else "",
+                    "first_attempt": format_ts(row.get("1ère tentative")),
+                    "last_attempt": format_ts(row.get("Dernière tentative")),
                     "ids": parse_ids(row.get("ID(s)")),
                     "soc_values": {col: row.get(col, "") for col in soc_columns},
                 }
