@@ -1172,6 +1172,177 @@ async def get_error_analysis(
         ]
     ].to_dict("records")
 
+    error_type_counts: list[dict[str, Any]] = []
+    err_nonempty = err.loc[err["type_erreur"].notna() & err["type_erreur"].ne("")].copy()
+    if not err_nonempty.empty:
+        counts_t = (
+            err_nonempty.groupby("type_erreur")
+            .size()
+            .reset_index(name="Nb")
+            .sort_values("Nb", ascending=False)
+        )
+        counts_t = pd.concat(
+            [counts_t, pd.DataFrame([{"type_erreur": "Total", "Nb": int(counts_t["Nb"].sum())}])],
+            ignore_index=True,
+        )
+        error_type_counts = counts_t.to_dict("records")
+
+    moment_counts: list[dict[str, Any]] = []
+    if "moment" in err.columns:
+        counts_moment = (
+            err.groupby("moment")
+            .size()
+            .reindex(MOMENT_ORDER, fill_value=0)
+            .reset_index(name="Somme de Charge_NOK")
+        )
+        counts_moment = counts_moment[counts_moment["Somme de Charge_NOK"] > 0]
+        if not counts_moment.empty:
+            counts_moment = pd.concat(
+                [
+                    counts_moment,
+                    pd.DataFrame(
+                        [
+                            {
+                                "moment": "Total",
+                                "Somme de Charge_NOK": int(counts_moment["Somme de Charge_NOK"].sum()),
+                            }
+                        ]
+                    ),
+                ],
+                ignore_index=True,
+            )
+            moment_counts = counts_moment.to_dict("records")
+
+    moment_adv_counts: list[dict[str, Any]] = []
+    if "moment_avancee" in err.columns:
+        counts_av = (
+            err.groupby("moment_avancee")
+            .size()
+            .reset_index(name="Somme de Charge_NOK")
+            .sort_values("Somme de Charge_NOK", ascending=False)
+        )
+        if not counts_av.empty:
+            counts_av = pd.concat(
+                [
+                    counts_av,
+                    pd.DataFrame(
+                        [
+                            {
+                                "moment_avancee": "Total",
+                                "Somme de Charge_NOK": int(counts_av["Somme de Charge_NOK"].sum()),
+                            }
+                        ]
+                    ),
+                ],
+                ignore_index=True,
+            )
+            moment_adv_counts = counts_av.to_dict("records")
+
+    err_evi = err[err["type_erreur"] == "Erreur_EVI"].copy()
+    evi_moment_distribution: list[dict[str, Any]] = []
+    evi_moment_adv_distribution: list[dict[str, Any]] = []
+    if not err_evi.empty and "moment" in err_evi.columns:
+        counts_moment = (
+            err_evi.groupby("moment")
+            .size()
+            .reindex(MOMENT_ORDER, fill_value=0)
+            .reset_index(name="Nb")
+        )
+        total_evi_err = int(counts_moment["Nb"].sum())
+        if total_evi_err > 0:
+            counts_moment["%"] = (counts_moment["Nb"] / total_evi_err * 100).round(2)
+            counts_moment = counts_moment[counts_moment["Nb"] > 0]
+            counts_moment = pd.concat(
+                [
+                    counts_moment,
+                    pd.DataFrame(
+                        [
+                            {
+                                "moment": "Total",
+                                "Nb": total_evi_err,
+                                "%": 100.0,
+                            }
+                        ]
+                    ),
+                ],
+                ignore_index=True,
+            )
+            evi_moment_distribution = counts_moment.to_dict("records")
+
+        if "moment_avancee" in err_evi.columns:
+            counts_ma = (
+                err_evi.groupby("moment_avancee")
+                .size()
+                .reset_index(name="Nb")
+                .sort_values("Nb", ascending=False)
+            )
+            if not counts_ma.empty:
+                counts_ma = pd.concat(
+                    [
+                        counts_ma,
+                        pd.DataFrame([
+                            {"moment_avancee": "Total", "Nb": int(counts_ma["Nb"].sum())}
+                        ]),
+                    ],
+                    ignore_index=True,
+                )
+                evi_moment_adv_distribution = counts_ma.to_dict("records")
+
+    err_ds = err[err["type_erreur"] == "Erreur_DownStream"].copy()
+    ds_moment_distribution: list[dict[str, Any]] = []
+    ds_moment_adv_distribution: list[dict[str, Any]] = []
+    if not err_ds.empty and "moment" in err_ds.columns:
+        counts_moment_ds = (
+            err_ds.groupby("moment")
+            .size()
+            .reindex(MOMENT_ORDER, fill_value=0)
+            .reset_index(name="Nb")
+        )
+        total_ds_err = int(counts_moment_ds["Nb"].sum())
+        if total_ds_err > 0:
+            counts_moment_ds["%"] = (counts_moment_ds["Nb"] / total_ds_err * 100).round(2)
+            counts_moment_ds = counts_moment_ds[counts_moment_ds["Nb"] > 0]
+            counts_moment_ds = pd.concat(
+                [
+                    counts_moment_ds,
+                    pd.DataFrame(
+                        [
+                            {
+                                "moment": "Total",
+                                "Nb": total_ds_err,
+                                "%": 100.0,
+                            }
+                        ]
+                    ),
+                ],
+                ignore_index=True,
+            )
+            ds_moment_distribution = counts_moment_ds.to_dict("records")
+
+        if "moment_avancee" in err_ds.columns:
+            counts_ma_ds = (
+                err_ds.groupby("moment_avancee")
+                .size()
+                .reset_index(name="Nb")
+                .sort_values("Nb", ascending=False)
+            )
+            if not counts_ma_ds.empty:
+                counts_ma_ds = pd.concat(
+                    [
+                        counts_ma_ds,
+                        pd.DataFrame(
+                            [
+                                {
+                                    "moment_avancee": "Total",
+                                    "Nb": int(counts_ma_ds["Nb"].sum()),
+                                }
+                            ]
+                        ),
+                    ],
+                    ignore_index=True,
+                )
+                ds_moment_adv_distribution = counts_ma_ds.to_dict("records")
+
     return templates.TemplateResponse(
         "partials/error_analysis.html",
         {
@@ -1185,13 +1356,20 @@ async def get_error_analysis(
         "top_ds": top_ds,
         "detail_ds": detail_ds,
         "detail_ds_pivot": detail_ds_pivot,
-        "evi_moment_code": evi_moment_code,
-        "evi_moment_code_site": evi_moment_code_site,
-        "ds_moment_code": ds_moment_code,
-        "ds_moment_code_site": ds_moment_code_site,
-        "site_summary": site_summary,
-    },
-)
+            "evi_moment_code": evi_moment_code,
+            "evi_moment_code_site": evi_moment_code_site,
+            "ds_moment_code": ds_moment_code,
+            "ds_moment_code_site": ds_moment_code_site,
+            "site_summary": site_summary,
+            "error_type_counts": error_type_counts,
+            "moment_counts": moment_counts,
+            "moment_adv_counts": moment_adv_counts,
+            "evi_moment_distribution": evi_moment_distribution,
+            "evi_moment_adv_distribution": evi_moment_adv_distribution,
+            "ds_moment_distribution": ds_moment_distribution,
+            "ds_moment_adv_distribution": ds_moment_adv_distribution,
+        },
+    )
 
 
 @router.get("/sessions/general")
