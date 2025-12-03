@@ -391,67 +391,69 @@ document.addEventListener('DOMContentLoaded', function() {
 </style>
 
 <script>
-// Données des durées par site/PDC
-const durationsBySite = {{ durations_by_site_dict | tojson }};
+(() => {
+    // Données des durées par site/PDC
+    const durationsBySite = {{ durations_by_site_dict | tojson }};
 
-function updatePDCDisplay() {
-    const selector = document.getElementById('site-selector');
-    const selectedSite = selector.value;
-    const chartContainer = document.getElementById('pdc-chart-container');
-    const tableContainer = document.getElementById('pdc-table-container');
+    window.updatePDCDisplay = function() {
+        const selector = document.getElementById('site-selector');
+        const selectedSite = selector?.value;
+        const chartContainer = document.getElementById('pdc-chart-container');
+        const tableContainer = document.getElementById('pdc-table-container');
 
-    if (!durationsBySite[selectedSite]) {
-        chartContainer.innerHTML = '<p style="color: #94a3b8; font-style: italic; margin-top: 1rem;">Aucune donnée pour ce site.</p>';
-        tableContainer.innerHTML = '';
-        return;
-    }
-
-    const data = durationsBySite[selectedSite];
-
-    // Trier les données par heures décroissantes pour le graphique
-    const sortedData = [...data].sort((a, b) => b.Heures - a.Heures);
-    const maxHeures = Math.max(...sortedData.map(row => row.Heures));
-
-    // Générer le graphique à barres horizontales
-    let chartHtml = '<div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px;">';
-    chartHtml += '<h6 style="font-size: 0.9rem; font-weight: 600; margin: 0 0 1rem 0; color: #334155;">📊 Durée totale par PDC (heures)</h6>';
-
-    sortedData.forEach(row => {
-        const percentage = maxHeures > 0 ? (row.Heures / maxHeures * 100) : 0;
-        const barWidth = Math.max(percentage, 5); // Minimum 5% pour la visibilité
-        const showValueInside = percentage > 15; // Afficher la valeur à l'intérieur si assez de place
-
-        chartHtml += '<div class="pdc-bar-container">';
-        chartHtml += `<div class="pdc-bar-label">${row.PDC}</div>`;
-        chartHtml += '<div class="pdc-bar-wrapper">';
-        chartHtml += `<div class="pdc-bar" style="width: ${barWidth}%;">`;
-        if (showValueInside) {
-            chartHtml += `<span class="pdc-bar-value">${row.Heures}h</span>`;
+        if (!selectedSite || !durationsBySite[selectedSite]) {
+            chartContainer.innerHTML = '<p style="color: #94a3b8; font-style: italic; margin-top: 1rem;">Aucune donnée pour ce site.</p>';
+            tableContainer.innerHTML = '';
+            return;
         }
+
+        const data = durationsBySite[selectedSite];
+
+        // Trier les données par heures décroissantes pour le graphique
+        const sortedData = [...data].sort((a, b) => b.Heures - a.Heures);
+        const maxHeures = Math.max(...sortedData.map(row => row.Heures));
+
+        // Générer le graphique à barres horizontales
+        let chartHtml = '<div style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px;">';
+        chartHtml += '<h6 style="font-size: 0.9rem; font-weight: 600; margin: 0 0 1rem 0; color: #334155;">📊 Durée totale par PDC (heures)</h6>';
+
+        sortedData.forEach(row => {
+            const percentage = maxHeures > 0 ? (row.Heures / maxHeures * 100) : 0;
+            const barWidth = Math.max(percentage, 5); // Minimum 5% pour la visibilité
+            const showValueInside = percentage > 15; // Afficher la valeur à l'intérieur si assez de place
+
+            chartHtml += '<div class="pdc-bar-container">';
+            chartHtml += `<div class="pdc-bar-label">${row.PDC}</div>`;
+            chartHtml += '<div class="pdc-bar-wrapper">';
+            chartHtml += `<div class="pdc-bar" style="width: ${barWidth}%;">`;
+            if (showValueInside) {
+                chartHtml += `<span class="pdc-bar-value">${row.Heures}h</span>`;
+            }
+            chartHtml += '</div>';
+            chartHtml += '</div>';
+            if (!showValueInside) {
+                chartHtml += `<span class="pdc-bar-value-outside">${row.Heures}h</span>`;
+            }
+            chartHtml += '</div>';
+        });
+
         chartHtml += '</div>';
-        chartHtml += '</div>';
-        if (!showValueInside) {
-            chartHtml += `<span class="pdc-bar-value-outside">${row.Heures}h</span>`;
-        }
-        chartHtml += '</div>';
-    });
+        chartContainer.innerHTML = chartHtml;
 
-    chartHtml += '</div>';
-    chartContainer.innerHTML = chartHtml;
+        // Générer le tableau (trié par durée décroissante)
+        let tableHtml = '<table class="stats-table"><thead><tr><th>PDC</th><th style="text-align: right;">Heures</th></tr></thead><tbody>';
 
-    // Générer le tableau (trié par durée décroissante)
-    let tableHtml = '<table class="stats-table"><thead><tr><th>PDC</th><th style="text-align: right;">Heures</th></tr></thead><tbody>';
+        sortedData.forEach(row => {
+            tableHtml += `<tr><td>${row.PDC}</td><td style="text-align: right; font-weight: 600;">${row.Heures}</td></tr>`;
+        });
 
-    sortedData.forEach(row => {
-        tableHtml += `<tr><td>${row.PDC}</td><td style="text-align: right; font-weight: 600;">${row.Heures}</td></tr>`;
-    });
+        tableHtml += '</tbody></table>';
+        tableContainer.innerHTML = tableHtml;
+    };
 
-    tableHtml += '</tbody></table>';
-    tableContainer.innerHTML = tableHtml;
-}
-
-// Initialiser l'affichage au chargement
-updatePDCDisplay();
+    // Initialiser l'affichage au chargement
+    window.updatePDCDisplay();
+})();
 </script>
 {% endif %}
 
@@ -508,6 +510,7 @@ updatePDCDisplay();
     </div>
 
     <script>
+(() => {
     // Gestion du tri et de la pagination pour le tableau "Taux de réussite/échec"
     const vehicleData = {{ vehicle_stats | tojson }};
     let vehicleSortColumn = '';
@@ -600,7 +603,13 @@ updatePDCDisplay();
     document.addEventListener('DOMContentLoaded', function() {
         sortVehicleTable('percent_ok');
     });
-    </script>
+
+    // Exposer les fonctions pour les gestionnaires inline
+    window.sortVehicleTable = sortVehicleTable;
+    window.prevVehiclePage = prevVehiclePage;
+    window.nextVehiclePage = nextVehiclePage;
+})();
+</script>
 
     <!-- Graphique à barres pour le taux de réussite -->
     <div style="margin-top: 2rem; padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px;">
