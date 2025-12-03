@@ -892,6 +892,7 @@ async def get_error_analysis(
             k.`State of charge(0:good, 1:error)` as state,
             k.type_erreur,
             k.moment,
+            k.moment_avancee,
             k.`{EVI_MOMENT}`,
             k.`{EVI_CODE}`,
             k.`{DS_PC}`
