@@ -16,6 +16,12 @@
         margin-bottom: 0.5rem;
         color: var(--color-text);
     }
+    .analysis-subtitle {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin: 0.5rem 0;
+        color: #475569;
+    }
     .table-wrapper {
         overflow: auto;
         margin-top: 0.5rem;
@@ -61,6 +67,194 @@
 {% elif no_errors %}
     <div class="message">Aucune erreur à afficher pour ce périmètre.</div>
 {% else %}
+    <div class="analysis-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 1rem;">
+        <div class="analysis-card">
+            <div class="analysis-title">Répartition par type d'erreur</div>
+            {% if type_breakdown %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Type d'erreur</th>
+                                <th data-sortable="true" data-type="number">Nb</th>
+                                <th data-sortable="true" data-type="number">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in type_breakdown %}
+                            <tr>
+                                <td>{{ row.type_erreur }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Nb }}">{{ row.Nb }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row.percent) }}">{{ '%.2f'|format(row.percent) }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr>
+                                <td style="font-weight:700;">Total</td>
+                                <td style="text-align:right; font-weight:700;">{{ type_breakdown_total }}</td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucun type d'erreur disponible.</div>
+            {% endif %}
+        </div>
+        <div class="analysis-card">
+            <div class="analysis-title">Répartition par moment</div>
+            {% if moment_breakdown %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true" data-type="number">Nb</th>
+                                <th data-sortable="true" data-type="number">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in moment_breakdown %}
+                            <tr>
+                                <td>{{ row.label }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Nb }}">{{ row.Nb }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row.percent) if row.percent is defined else '' }}">{% if row.percent is defined %}{{ '%.2f'|format(row.percent) }}{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucun moment d'erreur disponible.</div>
+            {% endif %}
+            {% if moment_avance_breakdown %}
+                <div class="analysis-subtitle">Moments (avancé)</div>
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment avancé</th>
+                                <th data-sortable="true" data-type="number">Nb</th>
+                                <th data-sortable="true" data-type="number">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in moment_avance_breakdown %}
+                            <tr>
+                                <td>{{ row.label }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Nb }}">{{ row.Nb }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row.percent) if row.percent is defined else '' }}">{% if row.percent is defined %}{{ '%.2f'|format(row.percent) }}{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="analysis-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 1rem;">
+        <div class="analysis-card">
+            <div class="analysis-title">EVI — Répartition par moment</div>
+            {% if evi_moment_breakdown %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true" data-type="number">Nb</th>
+                                <th data-sortable="true" data-type="number">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in evi_moment_breakdown %}
+                            <tr>
+                                <td>{{ row.label }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Nb }}">{{ row.Nb }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row.percent) if row.percent is defined else '' }}">{% if row.percent is defined %}{{ '%.2f'|format(row.percent) }}{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur EVI pour les filtres choisis.</div>
+            {% endif %}
+            {% if evi_moment_avance_breakdown %}
+                <div class="analysis-subtitle">EVI — Moments avancés</div>
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment avancé</th>
+                                <th data-sortable="true" data-type="number">Nb</th>
+                                <th data-sortable="true" data-type="number">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in evi_moment_avance_breakdown %}
+                            <tr>
+                                <td>{{ row.label }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Nb }}">{{ row.Nb }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row.percent) if row.percent is defined else '' }}">{% if row.percent is defined %}{{ '%.2f'|format(row.percent) }}{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+        <div class="analysis-card">
+            <div class="analysis-title">Downstream — Répartition par moment</div>
+            {% if ds_moment_breakdown %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true" data-type="number">Nb</th>
+                                <th data-sortable="true" data-type="number">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in ds_moment_breakdown %}
+                            <tr>
+                                <td>{{ row.label }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Nb }}">{{ row.Nb }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row.percent) if row.percent is defined else '' }}">{% if row.percent is defined %}{{ '%.2f'|format(row.percent) }}{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur DownStream pour les filtres choisis.</div>
+            {% endif %}
+            {% if ds_moment_avance_breakdown %}
+                <div class="analysis-subtitle">Downstream — Moments avancés</div>
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment avancé</th>
+                                <th data-sortable="true" data-type="number">Nb</th>
+                                <th data-sortable="true" data-type="number">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in ds_moment_avance_breakdown %}
+                            <tr>
+                                <td>{{ row.label }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row.Nb }}">{{ row.Nb }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ '%.2f'|format(row.percent) if row.percent is defined else '' }}">{% if row.percent is defined %}{{ '%.2f'|format(row.percent) }}{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
     <div class="analysis-grid" style="grid-template-columns: 1fr 1fr;">
         <div class="analysis-card">
             <div class="analysis-title">Top 3 erreurs (EVI + Downstream)</div>
@@ -286,6 +480,124 @@
         {% else %}
             <div class="message">Aucun résumé par site disponible.</div>
         {% endif %}
+    </div>
+
+    <div class="analysis-grid" style="grid-template-columns: 1fr 1fr; margin-top: 1rem;">
+        <div class="analysis-card">
+            <div class="analysis-title">EVI — Moment × Code</div>
+            {% if evi_moment_code %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true" data-type="number">Step</th>
+                                <th data-sortable="true" data-type="number">Code</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in evi_moment_code %}
+                            <tr>
+                                <td>{{ row['_moment'] }}</td>
+                                <td style="text-align:right;">{{ row['step'] }}</td>
+                                <td style="text-align:right;">{{ row['code'] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row['Somme de Charge_NOK'] }}">{{ row['Somme de Charge_NOK'] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur correspondant à la logique "Erreur_EVI" pour ce périmètre.</div>
+            {% endif %}
+
+            {% if evi_moment_code_site %}
+                <div class="analysis-subtitle">EVI — Moment × Code × Site</div>
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Site</th>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true" data-type="number">Step</th>
+                                <th data-sortable="true" data-type="number">Code</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in evi_moment_code_site %}
+                            <tr>
+                                <td>{{ row['Site'] }}</td>
+                                <td>{{ row['_moment'] }}</td>
+                                <td style="text-align:right;">{{ row['step'] }}</td>
+                                <td style="text-align:right;">{{ row['code'] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row['Somme de Charge_NOK'] }}">{{ row['Somme de Charge_NOK'] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="analysis-card">
+            <div class="analysis-title">Downstream — Moment × Code PC</div>
+            {% if ds_moment_code %}
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true" data-type="number">Step</th>
+                                <th data-sortable="true" data-type="number">Code PC</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in ds_moment_code %}
+                            <tr>
+                                <td>{{ row['_moment'] }}</td>
+                                <td style="text-align:right;">{{ row['step'] }}</td>
+                                <td style="text-align:right;">{{ row['code'] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row['Somme de Charge_NOK'] }}">{{ row['Somme de Charge_NOK'] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="message">Aucune erreur DownStream pour les filtres choisis.</div>
+            {% endif %}
+
+            {% if ds_moment_code_site %}
+                <div class="analysis-subtitle">Downstream — Moment × Code PC × Site</div>
+                <div class="table-wrapper">
+                    <table class="analysis-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Site</th>
+                                <th data-sortable="true">Moment</th>
+                                <th data-sortable="true" data-type="number">Step</th>
+                                <th data-sortable="true" data-type="number">Code PC</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in ds_moment_code_site %}
+                            <tr>
+                                <td>{{ row['Site'] }}</td>
+                                <td>{{ row['_moment'] }}</td>
+                                <td style="text-align:right;">{{ row['step'] }}</td>
+                                <td style="text-align:right;">{{ row['code'] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row['Somme de Charge_NOK'] }}">{{ row['Somme de Charge_NOK'] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
     </div>
 {% endif %}
 
