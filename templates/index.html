@@ -609,6 +609,8 @@
             dateFin: null,
             allSites: [],
             sites: [],
+            projectionSites: [],
+            projectionHideEmpty: false,
             errorTypes: [],
             selectedErrorTypes: [],
             moments: [],
@@ -812,18 +814,33 @@
             await loadFilterOptions();
             refreshTab();
         }
-        
+
         // Tabs
         function buildUrl(base) {
             const p = new URLSearchParams();
-            if (state.sites.length && state.sites.length < state.allSites.length) p.set('sites', state.sites.join(','));
+            if (state.tab === 'projection') {
+                if (state.projectionSites.length) p.set('sites', state.projectionSites.join(','));
+                if (state.projectionHideEmpty) p.set('hide_empty', 'true');
+            } else {
+                if (state.sites.length && state.sites.length < state.allSites.length) p.set('sites', state.sites.join(','));
+            }
             if (state.dateDebut) p.set('date_debut', state.dateDebut);
             if (state.dateFin) p.set('date_fin', state.dateFin);
             if (state.selectedErrorTypes.length < state.errorTypes.length) p.set('error_types', state.selectedErrorTypes.join(','));
             if (state.selectedMoments.length < state.moments.length) p.set('moments', state.selectedMoments.join(','));
             return p.toString() ? `${base}?${p}` : base;
         }
-        
+
+        function updateProjectionSelection(selected, silent = false) {
+            state.projectionSites = selected || [];
+            if (!silent && state.tab === 'projection' && state.projectionSites.length) refreshTab();
+        }
+
+        function updateProjectionHideEmpty(value, silent = false) {
+            state.projectionHideEmpty = !!value;
+            if (!silent && state.tab === 'projection' && state.projectionSites.length) refreshTab();
+        }
+
         function refreshTab() {
             const tabContent = document.getElementById('tab-content');
             if (tabContent) {

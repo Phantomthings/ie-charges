@@ -441,11 +441,36 @@ async def get_sessions_projection(
     date_fin: date = Query(default=None),
     error_types: str = Query(default=""),
     moments: str = Query(default=""),
+    hide_empty: bool = Query(default=False),
 ):
     error_type_list = [e.strip() for e in error_types.split(",") if e.strip()] if error_types else []
     moment_list = [m.strip() for m in moments.split(",") if m.strip()] if moments else []
 
-    where_clause, params = _build_conditions(sites, date_debut, date_fin, table_alias="k")
+    site_options_df = query_df(
+        """
+        SELECT DISTINCT Site
+        FROM kpi_sessions
+        WHERE Site IS NOT NULL
+        ORDER BY Site
+        """
+    )
+    site_options = site_options_df["Site"].tolist() if not site_options_df.empty else []
+
+    selected_sites = [s.strip() for s in sites.split(",") if s.strip()] if sites else []
+
+    if not selected_sites:
+        return templates.TemplateResponse(
+            "partials/projection.html",
+            {
+                "request": request,
+                "site_options": site_options,
+                "selected_sites": [],
+                "hide_empty": hide_empty,
+                "show_prompt": True,
+            },
+        )
+
+    where_clause, params = _build_conditions(",".join(selected_sites), date_debut, date_fin, table_alias="k")
 
     sql = f"""
         SELECT
@@ -466,7 +491,13 @@ async def get_sessions_projection(
     if df.empty:
         return templates.TemplateResponse(
             "partials/projection.html",
-            {"request": request, "no_data": True},
+            {
+                "request": request,
+                "no_data": True,
+                "site_options": site_options,
+                "selected_sites": selected_sites,
+                "hide_empty": hide_empty,
+            },
         )
 
     df["is_ok"] = pd.to_numeric(df["state"], errors="coerce").fillna(0).astype(int).eq(0)
@@ -476,7 +507,13 @@ async def get_sessions_projection(
     if err.empty:
         return templates.TemplateResponse(
             "partials/projection.html",
-            {"request": request, "no_errors": True},
+            {
+                "request": request,
+                "no_errors": True,
+                "site_options": site_options,
+                "selected_sites": selected_sites,
+                "hide_empty": hide_empty,
+            },
         )
 
     evi_step = pd.to_numeric(
@@ -520,7 +557,13 @@ async def get_sessions_projection(
     if evi_long.empty:
         return templates.TemplateResponse(
             "partials/projection.html",
-            {"request": request, "no_errors": True},
+            {
+                "request": request,
+                "no_errors": True,
+                "site_options": site_options,
+                "selected_sites": selected_sites,
+                "hide_empty": hide_empty,
+            },
         )
 
     evi_long["Site"] = evi_long.get("Site", "").fillna("")
@@ -546,21 +589,16 @@ async def get_sessions_projection(
     if not columns:
         return templates.TemplateResponse(
             "partials/projection.html",
-            {"request": request, "no_errors": True},
+            {
+                "request": request,
+                "no_errors": True,
+                "site_options": site_options,
+                "selected_sites": selected_sites,
+                "hide_empty": hide_empty,
+            },
         )
 
     column_template = pd.MultiIndex.from_tuples(columns, names=["moment", "code"])
-
-    column_headers = [
-        {"moment": moment, "code": code}
-        for moment, code in columns
-    ]
-
-    moment_headers: list[dict] = []
-    for moment in moments_sorted:
-        span = sum(1 for m, _ in columns if m == moment)
-        if span:
-            moment_headers.append({"moment": moment, "span": span})
 
     sites_payload: list[dict] = []
     site_list = sorted(evi_long["Site"].dropna().unique().tolist())
@@ -620,9 +658,18 @@ async def get_sessions_projection(
             df_disp = pv.reset_index(drop=True)
             df_disp["label"] = f"{site} (TOTAL)"
 
-        value_cols = list(column_template)
+        all_value_cols = list(column_template)
+        numeric_values_all = df_disp[all_value_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
+
+        value_cols = all_value_cols
+        if hide_empty:
+            value_cols = [
+                col for col in all_value_cols
+                if (numeric_values_all[col] != 0).any()
+            ]
+
         numeric_values = df_disp[value_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
-        df_disp["row_total"] = numeric_values.sum(axis=1).astype(int)
+        df_disp["row_total"] = numeric_values_all.sum(axis=1).astype(int)
 
         total_general_value = int(numeric_values.sum().sum())
         df_disp["row_percent"] = np.where(
@@ -648,6 +695,17 @@ async def get_sessions_projection(
             for _, r in df_disp.iterrows()
         ]
 
+        column_headers = [
+            {"moment": moment, "code": code}
+            for moment, code in value_cols
+        ]
+
+        moment_headers: list[dict] = []
+        for moment in moments_sorted:
+            span = sum(1 for m, _ in value_cols if m == moment)
+            if span:
+                moment_headers.append({"moment": moment, "span": span})
+
         sites_payload.append(
             {
                 "site": site,
@@ -663,7 +721,13 @@ async def get_sessions_projection(
     if not sites_payload:
         return templates.TemplateResponse(
             "partials/projection.html",
-            {"request": request, "no_errors": True},
+            {
+                "request": request,
+                "no_errors": True,
+                "site_options": site_options,
+                "selected_sites": selected_sites,
+                "hide_empty": hide_empty,
+            },
         )
 
     return templates.TemplateResponse(
@@ -671,6 +735,9 @@ async def get_sessions_projection(
         {
             "request": request,
             "sites": sites_payload,
+            "site_options": site_options,
+            "selected_sites": selected_sites,
+            "hide_empty": hide_empty,
         },
     )
 

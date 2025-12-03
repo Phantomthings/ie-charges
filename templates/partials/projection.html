@@ -1,14 +1,21 @@
-{% if no_data %}
-<div class="empty-state">
-    <div class="empty-icon">📑</div>
-    <div>Aucune donnée pour cette période.</div>
+<div class="projection-filters">
+    <div class="projection-filter-group">
+        <label for="projection-site-select">Sites à afficher</label>
+        <select id="projection-site-select" multiple size="8">
+            {% for site in site_options %}
+                <option value="{{ site }}" {% if site in selected_sites %}selected{% endif %}>{{ site }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="projection-actions">
+        <label class="projection-checkbox">
+            <input type="checkbox" id="projection-hide-empty" {% if hide_empty %}checked{% endif %}>
+            Masquer les colonnes avec uniquement des 0
+        </label>
+        <p class="projection-hint">Sélectionnez un ou plusieurs sites pour générer la projection.</p>
+    </div>
 </div>
-{% elif no_errors %}
-<div class="empty-state">
-    <div class="empty-icon">✅</div>
-    <div>Aucune erreur à afficher sur ce périmètre.</div>
-</div>
-{% else %}
+
 <style>
 .projection-card {
     background: #0f172a;
@@ -94,8 +101,64 @@
     overflow-x: auto;
     margin-top: 10px;
 }
+.projection-filters {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+.projection-filter-group label {
+    font-weight: 700;
+    color: #0f172a;
+    display: block;
+    margin-bottom: 6px;
+}
+#projection-site-select {
+    width: 260px;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+}
+.projection-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    color: #0f172a;
+}
+.projection-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+.projection-hint {
+    color: #475569;
+    font-size: 0.9rem;
+    margin: 0;
+}
 </style>
 
+{% if show_prompt %}
+    <div class="empty-state">
+        <div class="empty-icon">🎯</div>
+        <div>Aucun site sélectionné. Choisissez un ou plusieurs sites dans la liste pour charger la projection.</div>
+    </div>
+{% elif no_data %}
+    <div class="empty-state">
+        <div class="empty-icon">📑</div>
+        <div>Aucune donnée pour cette période.</div>
+    </div>
+{% elif no_errors %}
+    <div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <div>Aucune erreur à afficher sur ce périmètre.</div>
+    </div>
+{% else %}
 <h3 style="font-size: 1.2rem; margin-bottom: 1rem; color: #0f172a;">Projection pivot — Moments × Codes</h3>
 
 {% macro cell_style(val) %}
@@ -159,3 +222,31 @@
     </div>
 </div>
 {% endif %}
+
+<script>
+    (function() {
+        const select = document.getElementById('projection-site-select');
+        const hideEmpty = document.getElementById('projection-hide-empty');
+
+        function syncProjectionFilters() {
+            if (!window.updateProjectionSelection) return;
+            const selected = Array.from(select?.selectedOptions || []).map(o => o.value);
+            window.updateProjectionSelection(selected);
+        }
+
+        function syncHideEmpty() {
+            if (!window.updateProjectionHideEmpty) return;
+            window.updateProjectionHideEmpty(!!hideEmpty?.checked);
+        }
+
+        if (select) select.addEventListener('change', syncProjectionFilters);
+        if (hideEmpty) hideEmpty.addEventListener('change', syncHideEmpty);
+
+        if (window.updateProjectionSelection) {
+            window.updateProjectionSelection(Array.from(select?.selectedOptions || []).map(o => o.value), true);
+        }
+        if (window.updateProjectionHideEmpty) {
+            window.updateProjectionHideEmpty(!!hideEmpty?.checked, true);
+        }
+    })();
+</script>
