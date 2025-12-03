@@ -239,7 +239,17 @@
             window.updateProjectionHideEmpty(!!hideEmpty?.checked);
         }
 
-        if (select) select.addEventListener('change', syncProjectionFilters);
+        if (select) {
+            select.addEventListener('change', syncProjectionFilters);
+            select.addEventListener('mousedown', (event) => {
+                const option = event.target;
+                if (option.tagName === 'OPTION') {
+                    event.preventDefault();
+                    option.selected = !option.selected;
+                    syncProjectionFilters();
+                }
+            });
+        }
         if (hideEmpty) hideEmpty.addEventListener('change', syncHideEmpty);
 
         if (window.updateProjectionSelection) {
