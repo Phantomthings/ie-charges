@@ -75,6 +75,19 @@
             border-bottom: 1px solid var(--color-border);
             white-space: nowrap;
         }
+        .suspicious-table thead th[data-sortable] {
+            cursor: pointer;
+        }
+        .suspicious-table th.sorted-asc::after {
+            content: ' ▲';
+            font-size: 0.75rem;
+            color: var(--color-text-muted);
+        }
+        .suspicious-table th.sorted-desc::after {
+            content: ' ▼';
+            font-size: 0.75rem;
+            color: var(--color-text-muted);
+        }
         .suspicious-table td {
             padding: 0.55rem;
             border-bottom: 1px solid var(--color-border);
@@ -98,23 +111,23 @@
         <table class="suspicious-table">
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>ID</th>
-                    <th>Site</th>
-                    <th>PDC</th>
-                    <th>MAC</th>
-                    <th>Véhicule</th>
-                    <th>Début</th>
-                    <th>Fin</th>
-                    <th>Énergie (kWh)</th>
-                    <th>SOC début</th>
-                    <th>SOC fin</th>
+                    <th data-sortable="true" data-type="number">#</th>
+                    <th data-sortable="true">ID</th>
+                    <th data-sortable="true">Site</th>
+                    <th data-sortable="true">PDC</th>
+                    <th data-sortable="true">MAC</th>
+                    <th data-sortable="true">Véhicule</th>
+                    <th data-sortable="true">Début</th>
+                    <th data-sortable="true">Fin</th>
+                    <th data-sortable="true" data-type="number">Énergie (kWh)</th>
+                    <th data-sortable="true" data-type="number">SOC début</th>
+                    <th data-sortable="true" data-type="number">SOC fin</th>
                 </tr>
             </thead>
             <tbody>
                 {% for row in rows %}
                 <tr>
-                    <td class="muted-text">{{ row.rank }}</td>
+                    <td class="muted-text" data-sort-value="{{ row.rank }}">{{ row.rank }}</td>
                     <td class="link-cell">
                         {% if row.id %}
                             <a href="{{ row.url }}" target="_blank">{{ row.id }}</a>
@@ -122,20 +135,80 @@
                             <span class="muted-text">-</span>
                         {% endif %}
                     </td>
-                    <td>{{ row.site }}</td>
-                    <td>{{ row.pdc }}</td>
+                    <td data-sort-value="{{ row.site }}">{{ row.site }}</td>
+                    <td data-sort-value="{{ row.pdc }}">{{ row.pdc }}</td>
                     <td>{{ row.mac }}</td>
-                    <td>{{ row.vehicle }}</td>
-                    <td>{{ row.start }}</td>
-                    <td>{{ row.end }}</td>
-                    <td>{{ row.energy }}</td>
-                    <td>{{ row.soc_start }}</td>
-                    <td>{{ row.soc_end }}</td>
+                    <td data-sort-value="{{ row.vehicle }}">{{ row.vehicle }}</td>
+                    <td data-sort-value="{{ row.start }}">{{ row.start }}</td>
+                    <td data-sort-value="{{ row.end }}">{{ row.end }}</td>
+                    <td data-sort-value="{{ row.energy }}">{{ row.energy }}</td>
+                    <td data-sort-value="{{ row.soc_start }}">{{ row.soc_start }}</td>
+                    <td data-sort-value="{{ row.soc_end }}">{{ row.soc_end }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+    <script>
+        (() => {
+            const table = document.querySelector('.suspicious-table');
+            if (!table) return;
+
+            const headers = table.querySelectorAll('th[data-sortable]');
+            const tbody = table.querySelector('tbody');
+            if (!headers.length || !tbody) return;
+
+            let currentSort = { index: null, dir: 'asc' };
+
+            const parseValue = (text, type) => {
+                const cleaned = text.replace('%', '').replace(/\s+/g, '');
+                if (type === 'number' && cleaned !== '' && !isNaN(cleaned)) {
+                    return parseFloat(cleaned);
+                }
+                return cleaned.toLowerCase();
+            };
+
+            const applySort = (index, type) => {
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const dirMultiplier = currentSort.dir === 'asc' ? 1 : -1;
+
+                rows.sort((a, b) => {
+                    const aCell = a.children[index];
+                    const bCell = b.children[index];
+                    const aVal = parseValue(aCell?.dataset.sortValue ?? aCell?.textContent.trim() ?? '', type);
+                    const bVal = parseValue(bCell?.dataset.sortValue ?? bCell?.textContent.trim() ?? '', type);
+
+                    if (aVal < bVal) return -1 * dirMultiplier;
+                    if (aVal > bVal) return 1 * dirMultiplier;
+                    return 0;
+                });
+
+                rows.forEach(row => tbody.appendChild(row));
+            };
+
+            const updateIndicators = (clickedIndex) => {
+                headers.forEach((th, idx) => {
+                    th.classList.remove('sorted-asc', 'sorted-desc');
+                    if (idx === clickedIndex) {
+                        th.classList.add(currentSort.dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                    }
+                });
+            };
+
+            headers.forEach((th, index) => {
+                th.addEventListener('click', () => {
+                    const type = th.dataset.type || 'text';
+                    if (currentSort.index === index) {
+                        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort = { index, dir: 'asc' };
+                    }
+                    applySort(index, type);
+                    updateIndicators(index);
+                });
+            });
+        })();
+    </script>
     {% else %}
     <div class="empty-state">
         <div class="empty-icon">✅</div>
