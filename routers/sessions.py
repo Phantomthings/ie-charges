@@ -902,20 +902,22 @@ async def get_error_analysis(
             _code=detail_df["code"],
         )
 
-        pivot_table = (
-            pd.pivot_table(
-                pivot_df,
-                index="_site",
-                columns=["_type", "_moment", "_step", "_code"],
-                aggfunc="size",
-                fill_value=0,
-            )
-            .sort_index(axis=1)
-            .reset_index()
-        )
+        pivot_table = pd.pivot_table(
+            pivot_df,
+            index="_site",
+            columns=["_type", "_moment", "_step", "_code"],
+            aggfunc="size",
+            fill_value=0,
+        ).sort_index(axis=1)
+
+        # Ensure the site index survives the reset and is consistently named.
+        pivot_table.index.name = "Site"
+        pivot_table = pivot_table.reset_index()
 
         pivot_table.columns = [
-            "Site" if col == "_site" else " | ".join(map(str, col)).strip()
+            "Site"
+            if col == "Site" or col == "_site"
+            else " | ".join(map(str, col)).strip()
             for col in pivot_table.columns
         ]
 
