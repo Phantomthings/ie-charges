@@ -643,7 +643,11 @@ async def get_sessions_projection(
             df_disp["label"] = np.where(
                 df_disp["PDC"].eq("__TOTAL__"), f"{site} (TOTAL)", "   " + df_disp["PDC"].astype(str)
             )
-            df_disp = df_disp.drop(columns=["PDC"], errors="ignore")
+            # Avoid MultiIndex drop performance warning by targeting the column level explicitly
+            if isinstance(df_disp.columns, pd.MultiIndex):
+                df_disp = df_disp.drop(columns=["PDC"], level=0, errors="ignore")
+            else:
+                df_disp = df_disp.drop(columns=["PDC"], errors="ignore")
         else:
             g_site = site_rows.groupby(["moment_label", "code_num"]).size().rename("Nb").reset_index()
             pv = g_site.pivot_table(
@@ -698,15 +702,31 @@ async def get_sessions_projection(
                 val = val[0] if len(val) else ""
             return str(val)
 
-        rows = [
-            {
-                "label": _clean_label(r["label"]),
-                "values": [int(r[col]) if pd.notna(r[col]) else 0 for col in value_cols],
-                "total": int(r["row_total"]),
-                "percent": float(r["row_percent"]),
-            }
-            for _, r in df_disp.iterrows()
-        ]
+        def _get_scalar(val: Any) -> Any:
+            if isinstance(val, pd.Series):
+                val = val.iloc[0] if not val.empty else 0
+            elif isinstance(val, (list, np.ndarray)):
+                val = val[0] if len(val) else 0
+            return val
+
+        rows = []
+        for _, r in df_disp.iterrows():
+            values = [
+                int(val) if pd.notna(val) else 0
+                for val in (_get_scalar(r[col]) for col in value_cols)
+            ]
+
+            total_val = _get_scalar(r["row_total"])
+            percent_val = _get_scalar(r["row_percent"])
+
+            rows.append(
+                {
+                    "label": _clean_label(r["label"]),
+                    "values": values,
+                    "total": int(total_val) if pd.notna(total_val) else 0,
+                    "percent": float(percent_val) if pd.notna(percent_val) else 0.0,
+                }
+            )
 
         column_headers = [
             {"moment": moment, "code": code}
