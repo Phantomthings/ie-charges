@@ -884,6 +884,62 @@ async def get_error_analysis(
     sub_ds["code"] = ds_pc.loc[sub_ds.index]
     sub_ds["type"] = "Erreur_DownStream"
 
+    by_site = (
+        df.groupby("Site", as_index=False)
+        .agg(Total_Charges=("is_ok_filt", "count"), Charges_OK=("is_ok_filt", "sum"))
+        .assign(Charges_NOK=lambda d: d["Total_Charges"] - d["Charges_OK"])
+    )
+
+    def _build_pivot_table(detail_df: pd.DataFrame) -> dict[str, Any]:
+        if detail_df.empty:
+            return {"columns": [], "rows": []}
+
+        pivot_df = detail_df.assign(
+            _site=detail_df["Site"],
+            _type=detail_df.get("type", ""),
+            _moment=detail_df["moment_label"],
+            _step=detail_df["step"],
+            _code=detail_df["code"],
+        )
+
+        pivot_table = (
+            pd.pivot_table(
+                pivot_df,
+                index="_site",
+                columns=["_type", "_moment", "_step", "_code"],
+                aggfunc="size",
+                fill_value=0,
+            )
+            .sort_index(axis=1)
+            .reset_index()
+        )
+
+        pivot_table.columns = [
+            "Site" if col == "_site" else " | ".join(map(str, col)).strip()
+            for col in pivot_table.columns
+        ]
+
+        pivot_table = pivot_table.merge(
+            by_site.rename(columns={"Site": "Site", "Total_Charges": "Total Charges"})[
+                ["Site", "Total Charges"]
+            ],
+            on="Site",
+            how="left",
+        )
+
+        ordered_columns = ["Site", "Total Charges"] + [
+            col for col in pivot_table.columns if col not in {"Site", "Total Charges"}
+        ]
+        pivot_table = pivot_table[ordered_columns].fillna(0)
+
+        numeric_cols = [col for col in pivot_table.columns if col != "Site"]
+        pivot_table[numeric_cols] = pivot_table[numeric_cols].astype(int)
+
+        return {
+            "columns": pivot_table.columns.tolist(),
+            "rows": pivot_table.to_dict("records"),
+        }
+
     all_err = pd.concat([sub_evi, sub_ds], ignore_index=True)
 
     top_all: list[dict[str, Any]] = []
@@ -903,14 +959,20 @@ async def get_error_analysis(
         top_all = top3_all.to_dict("records")
 
         top_keys = top3_all[["moment_label", "step", "code", "type"]].to_records(index=False).tolist()
+        detail_all_df = all_err[
+            all_err[["moment_label", "step", "code", "type"]].apply(tuple, axis=1).isin(top_keys)
+        ]
         detail_all = (
-            all_err[all_err[["moment_label", "step", "code", "type"]].apply(tuple, axis=1).isin(top_keys)]
-            .groupby(["moment_label", "step", "code", "type", "Site"])
+            detail_all_df.groupby(["moment_label", "step", "code", "type", "Site"])
             .size()
             .reset_index(name="Occurrences")
-            .sort_values(["type", "moment_label", "step", "code", "Occurrences"], ascending=[True, True, True, True, False])
+            .sort_values(
+                ["type", "moment_label", "step", "code", "Occurrences"],
+                ascending=[True, True, True, True, False],
+            )
             .to_dict("records")
         )
+        detail_all_pivot = _build_pivot_table(detail_all_df)
 
     top_evi: list[dict[str, Any]] = []
     detail_evi: list[dict[str, Any]] = []
@@ -926,14 +988,17 @@ async def get_error_analysis(
         top_evi = tbl_evi.head(3).to_dict("records")
 
         top_keys_evi = tbl_evi.head(3)[["moment_label", "step", "code"]].to_records(index=False).tolist()
+        detail_evi_df = sub_evi[
+            sub_evi[["moment_label", "step", "code"]].apply(tuple, axis=1).isin(top_keys_evi)
+        ]
         detail_evi = (
-            sub_evi[sub_evi[["moment_label", "step", "code"]].apply(tuple, axis=1).isin(top_keys_evi)]
-            .groupby(["moment_label", "step", "code", "Site"])
+            detail_evi_df.groupby(["moment_label", "step", "code", "Site"])
             .size()
             .reset_index(name="Occurrences")
             .sort_values(["moment_label", "step", "code", "Occurrences"], ascending=[True, True, True, False])
             .to_dict("records")
         )
+        detail_evi_pivot = _build_pivot_table(detail_evi_df)
 
     top_ds: list[dict[str, Any]] = []
     detail_ds: list[dict[str, Any]] = []
@@ -949,20 +1014,21 @@ async def get_error_analysis(
         top_ds = tbl_ds.head(3).to_dict("records")
 
         top_keys_ds = tbl_ds.head(3)[["moment_label", "step", "code"]].to_records(index=False).tolist()
+        detail_ds_df = sub_ds[
+            sub_ds[["moment_label", "step", "code"]].apply(tuple, axis=1).isin(top_keys_ds)
+        ]
         detail_ds = (
-            sub_ds[sub_ds[["moment_label", "step", "code"]].apply(tuple, axis=1).isin(top_keys_ds)]
-            .groupby(["moment_label", "step", "code", "Site"])
+            detail_ds_df.groupby(["moment_label", "step", "code", "Site"])
             .size()
             .reset_index(name="Occurrences")
             .sort_values(["moment_label", "step", "code", "Occurrences"], ascending=[True, True, True, False])
             .to_dict("records")
         )
+        detail_ds_pivot = _build_pivot_table(detail_ds_df)
 
-    by_site = (
-        df.groupby("Site", as_index=False)
-        .agg(Total_Charges=("is_ok_filt", "count"), Charges_OK=("is_ok_filt", "sum"))
-        .assign(Charges_NOK=lambda d: d["Total_Charges"] - d["Charges_OK"])
-    )
+    detail_all_pivot = locals().get("detail_all_pivot", {"columns": [], "rows": []})
+    detail_evi_pivot = locals().get("detail_evi_pivot", {"columns": [], "rows": []})
+    detail_ds_pivot = locals().get("detail_ds_pivot", {"columns": [], "rows": []})
 
     err_phase = err.copy()
     err_phase["Phase"] = err_phase["moment_label"].map(_map_phase_label)
@@ -1019,15 +1085,18 @@ async def get_error_analysis(
         "partials/error_analysis.html",
         {
             "request": request,
-            "top_all": top_all,
-            "detail_all": detail_all,
-            "top_evi": top_evi,
-            "detail_evi": detail_evi,
-            "top_ds": top_ds,
-            "detail_ds": detail_ds,
-            "site_summary": site_summary,
-        },
-    )
+        "top_all": top_all,
+        "detail_all": detail_all,
+        "detail_all_pivot": detail_all_pivot,
+        "top_evi": top_evi,
+        "detail_evi": detail_evi,
+        "detail_evi_pivot": detail_evi_pivot,
+        "top_ds": top_ds,
+        "detail_ds": detail_ds,
+        "detail_ds_pivot": detail_ds_pivot,
+        "site_summary": site_summary,
+    },
+)
 
 
 @router.get("/sessions/general")
