@@ -52,6 +52,49 @@
         border: 1px solid #bfdbfe;
         margin: 0.5rem 0;
     }
+    .table-chart-grid {
+        display: grid;
+        grid-template-columns: 1.4fr 0.6fr;
+        gap: 1rem;
+        align-items: start;
+    }
+    .pie-card {
+        background: #f8fafc;
+        border: 1px dashed var(--color-border);
+        border-radius: var(--radius-md);
+        padding: 0.75rem;
+        text-align: center;
+    }
+    .pie-title {
+        font-weight: 600;
+        color: var(--color-text);
+        margin-bottom: 0.5rem;
+    }
+    .pie-chart {
+        width: 180px;
+        height: 180px;
+        margin: 0 auto;
+    }
+    .pie-legend {
+        margin-top: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        align-items: flex-start;
+    }
+    .pie-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: var(--color-text);
+    }
+    .pie-legend-swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+    }
 </style>
 
 <div class="section-title">🔍 Analyse des erreurs</div>
@@ -414,23 +457,30 @@
         <div class="analysis-card">
             <div class="analysis-title">Répartition des types d'erreur</div>
             {% if error_type_counts %}
-                <div class="table-wrapper">
-                    <table class="analysis-table">
-                        <thead>
-                            <tr>
-                                <th data-sortable="true">Type d'erreur</th>
-                                <th data-sortable="true" data-type="number">Nb</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in error_type_counts %}
-                            <tr>
-                                <td>{{ row["type_erreur"] }}</td>
-                                <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="error-type-table">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Type d'erreur</th>
+                                    <th data-sortable="true" data-type="number">Nb</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in error_type_counts %}
+                                <tr>
+                                    <td>{{ row["type_erreur"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pie-card" data-pie-source="error-type-table">
+                        <div class="pie-title">Graphique</div>
+                        <div class="pie-chart"></div>
+                        <div class="pie-legend"></div>
+                    </div>
                 </div>
             {% else %}
                 <div class="message">Aucune erreur à afficher pour ce périmètre.</div>
@@ -440,23 +490,30 @@
         <div class="analysis-card">
             <div class="analysis-title">Moments d'erreur (EVI + Downstream)</div>
             {% if moment_counts %}
-                <div class="table-wrapper">
-                    <table class="analysis-table">
-                        <thead>
-                            <tr>
-                                <th data-sortable="true">Moment</th>
-                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in moment_counts %}
-                            <tr>
-                                <td>{{ row["moment"] }}</td>
-                                <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="moment-table">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Moment</th>
+                                    <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in moment_counts %}
+                                <tr>
+                                    <td>{{ row["moment"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pie-card" data-pie-source="moment-table">
+                        <div class="pie-title">Graphique</div>
+                        <div class="pie-chart"></div>
+                        <div class="pie-legend"></div>
+                    </div>
                 </div>
             {% else %}
                 <div class="message">Aucune erreur à afficher pour ce périmètre.</div>
@@ -467,23 +524,30 @@
     <div class="analysis-card" style="margin-top: 1rem;">
         <div class="analysis-title">Moments d'erreur (Avancé)</div>
         {% if moment_adv_counts %}
-            <div class="table-wrapper">
-                <table class="analysis-table">
-                    <thead>
-                        <tr>
-                            <th data-sortable="true">Moment avancé</th>
-                            <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in moment_adv_counts %}
-                        <tr>
-                            <td>{{ row["moment_avancee"] }}</td>
-                            <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="table-chart-grid">
+                <div class="table-wrapper">
+                    <table class="analysis-table" id="moment-adv-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true">Moment avancé</th>
+                                <th data-sortable="true" data-type="number">Somme de Charge_NOK</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in moment_adv_counts %}
+                            <tr>
+                                <td>{{ row["moment_avancee"] }}</td>
+                                <td style="text-align:right;" data-sort-value="{{ row["Somme de Charge_NOK"] }}">{{ row["Somme de Charge_NOK"] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pie-card" data-pie-source="moment-adv-table">
+                    <div class="pie-title">Graphique</div>
+                    <div class="pie-chart"></div>
+                    <div class="pie-legend"></div>
+                </div>
             </div>
         {% else %}
             <div class="message">Aucune erreur à afficher pour ce périmètre.</div>
@@ -492,53 +556,67 @@
 
     <div class="analysis-grid" style="margin-top: 1rem; grid-template-columns: 1fr 1fr;">
         <div class="analysis-card">
-            <div class="analysis-title">Répartition des erreurs EVI par moment</div>
-            {% if evi_moment_distribution %}
-                <div class="table-wrapper">
-                    <table class="analysis-table">
-                        <thead>
-                            <tr>
-                                <th data-sortable="true">Moment</th>
-                                <th data-sortable="true" data-type="number">Nb</th>
-                                <th data-sortable="true" data-type="number">%</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in evi_moment_distribution %}
-                            <tr>
-                                <td>{{ row["moment"] }}</td>
-                                <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
-                                <td style="text-align:right;" data-sort-value="{{ row["%"] }}">{{ '%.2f'|format(row['%']) }}%</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+        <div class="analysis-title">Répartition des erreurs EVI par moment</div>
+        {% if evi_moment_distribution %}
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="evi-moment-table">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Moment</th>
+                                    <th data-sortable="true" data-type="number">Nb</th>
+                                    <th data-sortable="true" data-type="number">%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in evi_moment_distribution %}
+                                <tr>
+                                    <td>{{ row["moment"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["%"] }}">{{ '%.2f'|format(row['%']) }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pie-card" data-pie-source="evi-moment-table">
+                        <div class="pie-title">Graphique</div>
+                        <div class="pie-chart"></div>
+                        <div class="pie-legend"></div>
+                    </div>
                 </div>
-            {% else %}
-                <div class="message">Aucune erreur EVI pour les filtres choisis.</div>
-            {% endif %}
+        {% else %}
+            <div class="message">Aucune erreur EVI pour les filtres choisis.</div>
+        {% endif %}
         </div>
 
         <div class="analysis-card">
             <div class="analysis-title">Répartition avancée des erreurs EVI</div>
             {% if evi_moment_adv_distribution %}
-                <div class="table-wrapper">
-                    <table class="analysis-table">
-                        <thead>
-                            <tr>
-                                <th data-sortable="true">Moment avancé</th>
-                                <th data-sortable="true" data-type="number">Nb</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in evi_moment_adv_distribution %}
-                            <tr>
-                                <td>{{ row["moment_avancee"] }}</td>
-                                <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="evi-adv-table">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Moment avancé</th>
+                                    <th data-sortable="true" data-type="number">Nb</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in evi_moment_adv_distribution %}
+                                <tr>
+                                    <td>{{ row["moment_avancee"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pie-card" data-pie-source="evi-adv-table">
+                        <div class="pie-title">Graphique</div>
+                        <div class="pie-chart"></div>
+                        <div class="pie-legend"></div>
+                    </div>
                 </div>
             {% else %}
                 <div class="message">Aucune erreur EVI (avancé) pour les filtres choisis.</div>
@@ -548,53 +626,67 @@
 
     <div class="analysis-grid" style="margin-top: 1rem; grid-template-columns: 1fr 1fr;">
         <div class="analysis-card">
-            <div class="analysis-title">Répartition des erreurs DownStream par moment</div>
-            {% if ds_moment_distribution %}
-                <div class="table-wrapper">
-                    <table class="analysis-table">
-                        <thead>
-                            <tr>
-                                <th data-sortable="true">Moment</th>
-                                <th data-sortable="true" data-type="number">Nb</th>
-                                <th data-sortable="true" data-type="number">%</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in ds_moment_distribution %}
-                            <tr>
-                                <td>{{ row["moment"] }}</td>
-                                <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
-                                <td style="text-align:right;" data-sort-value="{{ row["%"] }}">{{ '%.2f'|format(row['%']) }}%</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+        <div class="analysis-title">Répartition des erreurs DownStream par moment</div>
+        {% if ds_moment_distribution %}
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="ds-moment-table">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Moment</th>
+                                    <th data-sortable="true" data-type="number">Nb</th>
+                                    <th data-sortable="true" data-type="number">%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in ds_moment_distribution %}
+                                <tr>
+                                    <td>{{ row["moment"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["%"] }}">{{ '%.2f'|format(row['%']) }}%</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pie-card" data-pie-source="ds-moment-table">
+                        <div class="pie-title">Graphique</div>
+                        <div class="pie-chart"></div>
+                        <div class="pie-legend"></div>
+                    </div>
                 </div>
-            {% else %}
-                <div class="message">Aucune erreur DownStream pour les filtres choisis.</div>
-            {% endif %}
+        {% else %}
+            <div class="message">Aucune erreur DownStream pour les filtres choisis.</div>
+        {% endif %}
         </div>
 
         <div class="analysis-card">
             <div class="analysis-title">Répartition avancée des erreurs DownStream</div>
             {% if ds_moment_adv_distribution %}
-                <div class="table-wrapper">
-                    <table class="analysis-table">
-                        <thead>
-                            <tr>
-                                <th data-sortable="true">Moment avancé</th>
-                                <th data-sortable="true" data-type="number">Nb</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in ds_moment_adv_distribution %}
-                            <tr>
-                                <td>{{ row["moment_avancee"] }}</td>
-                                <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="table-chart-grid">
+                    <div class="table-wrapper">
+                        <table class="analysis-table" id="ds-adv-table">
+                            <thead>
+                                <tr>
+                                    <th data-sortable="true">Moment avancé</th>
+                                    <th data-sortable="true" data-type="number">Nb</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in ds_moment_adv_distribution %}
+                                <tr>
+                                    <td>{{ row["moment_avancee"] }}</td>
+                                    <td style="text-align:right;" data-sort-value="{{ row["Nb"] }}">{{ row["Nb"] }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pie-card" data-pie-source="ds-adv-table">
+                        <div class="pie-title">Graphique</div>
+                        <div class="pie-chart"></div>
+                        <div class="pie-legend"></div>
+                    </div>
                 </div>
             {% else %}
                 <div class="message">Aucune erreur DownStream (avancé) pour les filtres choisis.</div>
@@ -656,6 +748,92 @@
                     updateIndicators(index);
                 });
             });
+        });
+    })();
+
+    (() => {
+        const palettes = ['#0ea5e9', '#8b5cf6', '#f97316', '#10b981', '#ec4899', '#facc15', '#3b82f6', '#22c55e'];
+
+        const buildPie = (container, data) => {
+            const total = data.reduce((sum, item) => sum + item.value, 0);
+            const pieEl = container.querySelector('.pie-chart');
+            const legendEl = container.querySelector('.pie-legend');
+
+            if (!pieEl || !legendEl) return;
+
+            if (total <= 0) {
+                pieEl.innerHTML = '<p style="color:#94a3b8; font-style:italic;">Aucune donnée</p>';
+                legendEl.innerHTML = '';
+                return;
+            }
+
+            let cumulative = 0;
+            const size = 180;
+            const center = size / 2;
+            const radius = size / 2;
+            const svgNS = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(svgNS, 'svg');
+            svg.setAttribute('width', size);
+            svg.setAttribute('height', size);
+            svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+
+            data.forEach((item, idx) => {
+                const startAngle = cumulative * 2 * Math.PI - Math.PI / 2;
+                const slice = (item.value / total) * 2 * Math.PI;
+                cumulative += item.value / total;
+                const endAngle = startAngle + slice;
+
+                const x1 = center + radius * Math.cos(startAngle);
+                const y1 = center + radius * Math.sin(startAngle);
+                const x2 = center + radius * Math.cos(endAngle);
+                const y2 = center + radius * Math.sin(endAngle);
+                const largeArc = slice > Math.PI ? 1 : 0;
+
+                const path = document.createElementNS(svgNS, 'path');
+                path.setAttribute('d', `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`);
+                path.setAttribute('fill', palettes[idx % palettes.length]);
+                path.setAttribute('aria-label', `${item.label}: ${item.value}`);
+                svg.appendChild(path);
+            });
+
+            pieEl.innerHTML = '';
+            pieEl.appendChild(svg);
+
+            legendEl.innerHTML = '';
+            data.forEach((item, idx) => {
+                const percent = ((item.value / total) * 100).toFixed(1);
+                const legendItem = document.createElement('div');
+                legendItem.className = 'pie-legend-item';
+                legendItem.innerHTML = `
+                    <span class="pie-legend-swatch" style="background:${palettes[idx % palettes.length]};"></span>
+                    <span>${item.label} — ${percent}% (${item.value})</span>
+                `;
+                legendEl.appendChild(legendItem);
+            });
+        };
+
+        const extractData = (table) => {
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
+            return rows.map((row) => {
+                const cells = Array.from(row.children);
+                const label = cells[0]?.textContent.trim() || '';
+                const numericCell = cells.slice(1).find((cell) => {
+                    const raw = cell.dataset.sortValue ?? cell.textContent;
+                    const cleaned = raw.toString().replace('%', '').replace(',', '.').trim();
+                    return cleaned !== '' && !isNaN(cleaned);
+                });
+                const rawValue = numericCell ? (numericCell.dataset.sortValue ?? numericCell.textContent) : '0';
+                const value = parseFloat(rawValue.toString().replace('%', '').replace(',', '.')) || 0;
+                return { label, value };
+            }).filter((item) => item.label !== '');
+        };
+
+        document.querySelectorAll('[data-pie-source]').forEach((container) => {
+            const tableId = container.dataset.pieSource;
+            const table = document.getElementById(tableId);
+            if (!table) return;
+            const data = extractData(table);
+            buildPie(container, data);
         });
     })();
 </script>
