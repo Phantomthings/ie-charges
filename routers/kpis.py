@@ -2,6 +2,8 @@ from fastapi import APIRouter, Request, Query
 from fastapi.templating import Jinja2Templates
 from datetime import date
 import pandas as pd
+import numpy as np
+import re
 
 from db import query_df
 
@@ -184,5 +186,196 @@ async def get_multi_attempts(
             "request": request,
             "rows": table_rows,
             "soc_columns": soc_columns,
+        },
+    )
+
+
+@router.get("/kpi/mac-id")
+async def get_mac_identifier(
+    request: Request,
+    sites: str = Query(default=""),
+    date_debut: date = Query(default=None),
+    date_fin: date = Query(default=None),
+    mac_prefix: str = Query(default=""),
+    error_types: str = Query(default=""),
+    moments: str = Query(default=""),
+):
+    """Top 10 des MAC non identifiées et détails des charges associées."""
+
+    def normalize_mac(value: str) -> str:
+        if value is None:
+            return ""
+        return re.sub(r"[^0-9a-f]", "", str(value).lower().replace("0x", "", 1))
+
+    def format_mac(value: str) -> str:
+        norm = normalize_mac(value)
+        return ":".join(norm[i : i + 2].upper() for i in range(0, len(norm), 2)) if norm else ""
+
+    def format_dt(value):
+        if pd.isna(value):
+            return ""
+        try:
+            ts = pd.to_datetime(value, errors="coerce")
+            return ts.strftime("%Y-%m-%d %H:%M") if not pd.isna(ts) else ""
+        except Exception:
+            return str(value)
+
+    def format_float(value, ndigits=3):
+        if pd.isna(value):
+            return ""
+        try:
+            return round(float(value), ndigits)
+        except Exception:
+            return value
+
+    filters = {
+        "sites": sites or "",
+        "date_debut": date_debut.isoformat() if date_debut else "",
+        "date_fin": date_fin.isoformat() if date_fin else "",
+        "error_types": error_types or "",
+        "moments": moments or "",
+    }
+
+    # Top 10 MAC non identifiées
+    mac_counts = query_df("SELECT * FROM kpi_mac_id")
+    top_rows = []
+
+    if not mac_counts.empty:
+        mac_col = "Mac" if "Mac" in mac_counts.columns else None
+        count_col = None
+        for col in ("nombre_de_charges", "Nombre_de_charges", "nb_charges", "Nombre de charges"):
+            if col in mac_counts.columns:
+                count_col = col
+                break
+
+        if mac_col is None:
+            mac_counts["Mac"] = ""
+            mac_col = "Mac"
+
+        if count_col is None:
+            mac_counts["Nombre de charges"] = np.nan
+            count_col = "Nombre de charges"
+
+        mac_counts = mac_counts.rename(columns={count_col: "Nombre de charges"})
+        mac_counts["Nombre de charges"] = pd.to_numeric(
+            mac_counts["Nombre de charges"], errors="coerce"
+        ).fillna(0)
+        mac_counts = mac_counts.sort_values("Nombre de charges", ascending=False).head(10)
+
+        for idx, (_, row) in enumerate(mac_counts.iterrows(), start=1):
+            top_rows.append(
+                {
+                    "rank": idx,
+                    "mac": format_mac(row.get(mac_col, "")),
+                    "mac_raw": normalize_mac(row.get(mac_col, "")),
+                    "charges": int(row.get("Nombre de charges", 0)),
+                }
+            )
+
+    # Détails des charges pour un préfixe MAC
+    charges_df = query_df("SELECT * FROM kpi_charges_mac")
+    sessions_df = query_df("SELECT ID, `Datetime end` FROM kpi_sessions")
+
+    mac_query = normalize_mac(mac_prefix)
+    charges_rows = []
+    summary = None
+    selected_mac_display = format_mac(mac_query) if mac_query else ""
+
+    if not charges_df.empty and mac_query:
+        df = charges_df.copy()
+
+        mac_col = None
+        for col in ("mac", "MAC", "MAC Address", "Mac"):
+            if col in df.columns:
+                mac_col = col
+                break
+
+        if mac_col:
+            df["_mac_norm"] = df[mac_col].astype(str).map(normalize_mac)
+            df = df[df["_mac_norm"].str.startswith(mac_query)]
+        else:
+            df = df.iloc[0:0]
+
+        if "Site" in df.columns and sites:
+            site_list = [s.strip() for s in sites.split(",") if s.strip()]
+            if site_list:
+                df = df[df["Site"].isin(site_list)]
+
+        if "Datetime start" in df.columns:
+            df["Datetime start"] = pd.to_datetime(df["Datetime start"], errors="coerce")
+            if date_debut:
+                df = df[df["Datetime start"] >= pd.Timestamp(date_debut)]
+            if date_fin:
+                df = df[df["Datetime start"] < pd.Timestamp(date_fin) + pd.Timedelta(days=1)]
+
+        if not sessions_df.empty and {"ID", "Datetime end"}.issubset(df.columns):
+            sess_lookup = sessions_df[["ID", "Datetime end"]].copy()
+            sess_lookup["ID"] = sess_lookup["ID"].astype(str).str.strip()
+            df["ID"] = df["ID"].astype(str).str.strip()
+            df = df.merge(sess_lookup, on="ID", how="left", suffixes=("", "_sess"))
+            if "Datetime end_sess" in df.columns:
+                df["Datetime end"] = df["Datetime end"].fillna(df.pop("Datetime end_sess"))
+
+        if "is_ok" in df.columns:
+            ok_series = pd.to_numeric(df["is_ok"], errors="coerce").fillna(0).astype(int).astype(bool)
+            total = len(ok_series)
+            ok_count = int(ok_series.sum())
+            summary = {
+                "total": total,
+                "ok": ok_count,
+                "rate": round((ok_count / total * 100), 1) if total else 0.0,
+            }
+            df["_is_ok"] = ok_series
+
+        display_cols = [
+            "Site",
+            "PDC",
+            "Datetime start",
+            "Datetime end",
+            "MAC Address",
+            "Vehicle",
+            "Energy (Kwh)",
+            "ID",
+        ]
+        df = df[[c for c in display_cols if c in df.columns]].copy()
+
+        if "Datetime start" in df.columns:
+            df = df.sort_values("Datetime start", ascending=False)
+
+        for col in ("Datetime start", "Datetime end"):
+            if col in df.columns:
+                df[col] = df[col].apply(format_dt)
+
+        if "Energy (Kwh)" in df.columns:
+            df["Energy (Kwh)"] = df["Energy (Kwh)"].apply(lambda v: format_float(v, 3))
+
+        for _, row in df.iterrows():
+            charge_id = row.get("ID", "")
+            charges_rows.append(
+                {
+                    "site": row.get("Site", ""),
+                    "pdc": row.get("PDC", ""),
+                    "start": row.get("Datetime start", ""),
+                    "end": row.get("Datetime end", ""),
+                    "mac": format_mac(row.get("MAC Address", mac_query)),
+                    "vehicle": row.get("Vehicle", ""),
+                    "energy": row.get("Energy (Kwh)", ""),
+                    "url": f"{BASE_CHARGE_URL}{charge_id}" if charge_id else "",
+                    "id": charge_id,
+                    "is_ok": bool(row.get("_is_ok", False)) if "_is_ok" in df.columns else None,
+                }
+            )
+
+    return templates.TemplateResponse(
+        "partials/mac_id.html",
+        {
+            "request": request,
+            "filters": filters,
+            "top_rows": top_rows,
+            "mac_prefix": mac_prefix,
+            "mac_query": mac_query,
+            "selected_mac": selected_mac_display,
+            "charges_rows": charges_rows,
+            "summary": summary,
         },
     )

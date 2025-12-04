@@ -1,0 +1,208 @@
+<style>
+    .mac-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 1rem;
+        align-items: start;
+    }
+    .card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        padding: 1rem;
+        box-shadow: var(--shadow-sm, 0 6px 24px rgba(15, 23, 42, 0.06));
+    }
+    .card h3 {
+        margin-bottom: 0.35rem;
+        font-weight: 700;
+        color: var(--color-text);
+    }
+    .card .muted { color: var(--color-text-muted); font-size: 0.9rem; }
+    .mac-form { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: flex-end; }
+    .mac-form label { font-weight: 600; color: var(--color-text-muted); font-size: 0.9rem; }
+    .mac-form input[type="text"] {
+        padding: 0.5rem 0.6rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        font-size: 0.95rem;
+        min-width: 220px;
+    }
+    .mac-table { width: 100%; border-collapse: collapse; }
+    .mac-table th, .mac-table td {
+        padding: 0.5rem;
+        border: 1px solid var(--color-border);
+        text-align: left;
+        font-size: 0.9rem;
+    }
+    .mac-table th { background: #f8fafc; color: var(--color-text-muted); font-weight: 700; }
+    .table-wrapper { overflow: auto; max-height: 420px; }
+    .pill {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+    .pill-success { background: #ecfdf3; color: #15803d; border: 1px solid #bbf7d0; }
+    .pill-danger { background: #fef2f2; color: #b91c1c; border: 1px solid #fecdd3; }
+    .metrics { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .metric-box {
+        flex: 1 1 180px;
+        background: #f8fafc;
+        border: 1px dashed var(--color-border);
+        border-radius: var(--radius);
+        padding: 0.75rem;
+    }
+    .metric-label { color: var(--color-text-muted); font-size: 0.85rem; }
+    .metric-value { font-weight: 800; font-size: 1.1rem; color: var(--color-text); }
+    .empty-state {
+        border: 1px dashed var(--color-border);
+        background: #f8fafc;
+        border-radius: var(--radius);
+        padding: 1rem;
+        color: var(--color-text-muted);
+        text-align: center;
+    }
+</style>
+
+<div class="section-title">🔍 Erreur spécifique — MAC non identifiées</div>
+
+<div class="mac-grid">
+    <div class="card">
+        <h3>Filtrer par adresse MAC</h3>
+        <div class="muted">Recherchez une adresse ou un préfixe pour analyser les charges associées.</div>
+        <form class="mac-form" hx-get="/api/kpi/mac-id" hx-target="#tab-content" hx-swap="innerHTML">
+            <input type="hidden" name="sites" value="{{ filters.sites }}">
+            <input type="hidden" name="date_debut" value="{{ filters.date_debut }}">
+            <input type="hidden" name="date_fin" value="{{ filters.date_fin }}">
+            <input type="hidden" name="error_types" value="{{ filters.error_types }}">
+            <input type="hidden" name="moments" value="{{ filters.moments }}">
+            <label style="display:flex; flex-direction:column; gap:0.25rem;">
+                Adresse / Préfixe MAC
+                <input type="text" name="mac_prefix" value="{{ mac_prefix }}" placeholder="ex : 4E:5D" autocomplete="off">
+            </label>
+            <button class="btn" type="submit">Rechercher</button>
+        </form>
+
+        {% if mac_query and charges_rows %}
+        <div style="margin-top:0.75rem;">
+            <div class="muted">Résultats pour <strong>{{ selected_mac }}</strong></div>
+            {% if summary %}
+            <div class="metrics">
+                <div class="metric-box">
+                    <div class="metric-label">Charges associées</div>
+                    <div class="metric-value">{{ summary.total }}</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Charges OK</div>
+                    <div class="metric-value" style="color:#15803d;">{{ summary.ok }}</div>
+                </div>
+                <div class="metric-box">
+                    <div class="metric-label">Taux de réussite</div>
+                    <div class="metric-value">{{ summary.rate }}%</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% elif mac_query %}
+        <div class="empty-state" style="margin-top:0.75rem;">Aucune charge trouvée pour ce préfixe.</div>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h3>Top 10 des MAC non identifiées</h3>
+        <div class="muted">Classement basé sur kpi_mac_id.</div>
+        {% if top_rows %}
+        <div class="table-wrapper">
+            <table class="mac-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Adresse MAC</th>
+                        <th style="text-align:right;">Nb de charges</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in top_rows %}
+                    <tr>
+                        <td>{{ row.rank }}</td>
+                        <td style="font-weight:700;">{{ row.mac }}</td>
+                        <td style="text-align:right; font-variant-numeric: tabular-nums;">{{ row.charges }}</td>
+                        <td>
+                            <form hx-get="/api/kpi/mac-id" hx-target="#tab-content" hx-swap="innerHTML">
+                                <input type="hidden" name="mac_prefix" value="{{ row.mac_raw }}">
+                                <input type="hidden" name="sites" value="{{ filters.sites }}">
+                                <input type="hidden" name="date_debut" value="{{ filters.date_debut }}">
+                                <input type="hidden" name="date_fin" value="{{ filters.date_fin }}">
+                                <input type="hidden" name="error_types" value="{{ filters.error_types }}">
+                                <input type="hidden" name="moments" value="{{ filters.moments }}">
+                                <button class="btn" type="submit">Analyser</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">Données kpi_mac_id indisponibles.</div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card" style="margin-top:1rem;">
+    <h3>Charges associées</h3>
+    {% if mac_query and charges_rows %}
+    <div class="table-wrapper">
+        <table class="mac-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Site</th>
+                    <th>PDC</th>
+                    <th>Début</th>
+                    <th>Fin</th>
+                    <th>MAC</th>
+                    <th>Véhicule</th>
+                    <th style="text-align:right;">Energie (kWh)</th>
+                    <th>Statut</th>
+                    <th>ELTO</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in charges_rows %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ row.site }}</td>
+                    <td>{{ row.pdc }}</td>
+                    <td>{{ row.start }}</td>
+                    <td>{{ row.end }}</td>
+                    <td>{{ row.mac }}</td>
+                    <td>{{ row.vehicle }}</td>
+                    <td style="text-align:right;">{{ row.energy }}</td>
+                    <td>
+                        {% if row.is_ok is sameas true %}
+                        <span class="pill pill-success">OK</span>
+                        {% elif row.is_ok is sameas false %}
+                        <span class="pill pill-danger">NOK</span>
+                        {% else %}
+                        <span class="muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.url %}
+                        <a href="{{ row.url }}" target="_blank">🔗</a>
+                        {% else %}-{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% elif mac_query %}
+    <div class="empty-state">Aucune charge associée pour ce filtre.</div>
+    {% else %}
+    <div class="empty-state">Saisissez un préfixe MAC ou cliquez sur une ligne du Top 10 pour afficher le détail.</div>
+    {% endif %}
+</div>
