@@ -1,1 +1,351 @@
+<style>
+    .mac-container { display: flex; flex-direction: column; gap: 1.5rem; }
+    .mac-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .mac-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    .mac-card-title {
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        color: var(--color-text);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .mac-table-wrapper {
+        overflow: auto;
+        max-height: 400px;
+    }
+    .mac-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+    .mac-table th,
+    .mac-table td {
+        border: 1px solid var(--color-border);
+        padding: 0.6rem 0.75rem;
+        text-align: left;
+    }
+    .mac-table th {
+        background: #f8fafc;
+        color: var(--color-text-muted);
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+        cursor: pointer;
+        user-select: none;
+    }
+    .mac-table th.sorted-asc::after { content: ' \25B2'; font-size: 0.7rem; }
+    .mac-table th.sorted-desc::after { content: ' \25BC'; font-size: 0.7rem; }
+    .mac-table tbody tr:nth-child(even) { background: #f9fafb; }
+    .mac-table tbody tr:hover { background: #f1f5f9; }
+    .mac-filter-form {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-end;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+    .mac-filter-group { display: flex; flex-direction: column; gap: 0.25rem; }
+    .mac-filter-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--color-text-muted);
+    }
+    .mac-filter-input {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        font-size: 0.9rem;
+        min-width: 200px;
+    }
+    .mac-filter-input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+    }
+    .mac-filter-btn {
+        padding: 0.5rem 1rem;
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: var(--radius);
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .mac-filter-btn:hover { background: #b91c1c; }
+    .mac-summary-card {
+        display: flex;
+        gap: 2rem;
+        padding: 1rem 1.25rem;
+        background: linear-gradient(135deg, #eff6ff, #dbeafe);
+        border: 1px solid #bfdbfe;
+        border-radius: var(--radius);
+        margin-bottom: 1rem;
+    }
+    .mac-summary-item { display: flex; flex-direction: column; }
+    .mac-summary-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1d4ed8;
+    }
+    .mac-summary-label {
+        font-size: 0.8rem;
+        color: #64748b;
+        text-transform: uppercase;
+    }
+    .mac-link {
+        color: #2563eb;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .mac-link:hover { text-decoration: underline; }
+    .mac-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .mac-badge-ok { background: #dcfce7; color: #15803d; }
+    .mac-badge-nok { background: #fee2e2; color: #dc2626; }
+    .mac-message {
+        padding: 0.75rem 1rem;
+        background: #dbeafe;
+        color: #1d4ed8;
+        border-radius: var(--radius);
+        border: 1px solid #bfdbfe;
+        font-size: 0.9rem;
+    }
+    .mac-clickable { cursor: pointer; transition: background 0.15s; }
+    .mac-clickable:hover { background: #e0f2fe !important; }
+    .mac-selected-row { background: #dbeafe !important; }
+    .mac-divider {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--color-border), transparent);
+        margin: 1.5rem 0;
+    }
+    @media (max-width: 900px) { .mac-grid { grid-template-columns: 1fr; } }
+</style>
 
+<div class="section-title">Top 10 MAC non identifiées</div>
+
+<div class="mac-container">
+    <div class="mac-grid">
+        <div class="mac-card">
+            <div class="mac-card-title">Top 10 des adresses MAC non identifiées</div>
+            {% if top_rows %}
+                <div class="mac-table-wrapper">
+                    <table class="mac-table" id="top-mac-table">
+                        <thead>
+                            <tr>
+                                <th data-sortable="true" data-type="number">#</th>
+                                <th data-sortable="true">Adresse MAC</th>
+                                <th data-sortable="true" data-type="number">Nombre de charges</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in top_rows %}
+                            <tr class="mac-clickable" data-mac="{{ row.mac_raw }}" onclick="selectMac('{{ row.mac_raw }}', '{{ row.mac }}')">
+                                <td data-sort-value="{{ row.rank }}">{{ row.rank }}</td>
+                                <td><code>{{ row.mac }}</code></td>
+                                <td data-sort-value="{{ row.charges }}" style="text-align:right;">{{ row.charges }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="mac-message">Aucune adresse MAC non identifiée trouvée.</div>
+            {% endif %}
+        </div>
+
+        <div class="mac-card">
+            <div class="mac-card-title">Filtrer par adresse MAC</div>
+            <div class="mac-filter-form">
+                <div class="mac-filter-group">
+                    <label class="mac-filter-label">Adresse MAC ou préfixe</label>
+                    <input type="text" class="mac-filter-input" id="mac-prefix-input"
+                           placeholder="ex: 4E:5D ou 4E5D12AB"
+                           value="{{ mac_prefix or '' }}"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();filterByMac();}">
+                </div>
+                <button class="mac-filter-btn" onclick="filterByMac()">Rechercher</button>
+            </div>
+
+            {% if selected_mac %}
+                <div class="mac-summary-card">
+                    <div class="mac-summary-item">
+                        <span class="mac-summary-label">MAC sélectionnée</span>
+                        <span class="mac-summary-value" style="font-size: 1rem;"><code>{{ selected_mac }}</code></span>
+                    </div>
+                    {% if summary %}
+                    <div class="mac-summary-item">
+                        <span class="mac-summary-label">Total charges</span>
+                        <span class="mac-summary-value">{{ summary.total }}</span>
+                    </div>
+                    <div class="mac-summary-item">
+                        <span class="mac-summary-label">Réussies</span>
+                        <span class="mac-summary-value" style="color:#15803d;">{{ summary.ok }}</span>
+                    </div>
+                    <div class="mac-summary-item">
+                        <span class="mac-summary-label">Taux réussite</span>
+                        <span class="mac-summary-value">{{ summary.rate }}%</span>
+                    </div>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="mac-message">Cliquez sur une MAC du Top 10 ou saisissez un préfixe pour voir les détails.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if selected_mac and charges_rows %}
+    <div class="mac-divider"></div>
+    <div class="mac-card">
+        <div class="mac-card-title">Charges associées à {{ selected_mac }}</div>
+        <div class="mac-table-wrapper" style="max-height: 500px;">
+            <table class="mac-table" id="charges-mac-table">
+                <thead>
+                    <tr>
+                        <th data-sortable="true">Site</th>
+                        <th data-sortable="true">PDC</th>
+                        <th data-sortable="true">Début</th>
+                        <th data-sortable="true">Fin</th>
+                        <th data-sortable="true">MAC</th>
+                        <th data-sortable="true">Véhicule</th>
+                        <th data-sortable="true" data-type="number">Énergie (kWh)</th>
+                        <th data-sortable="true">Statut</th>
+                        <th>Lien</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in charges_rows %}
+                    <tr>
+                        <td>{{ row.site }}</td>
+                        <td>{{ row.pdc }}</td>
+                        <td>{{ row.start }}</td>
+                        <td>{{ row.end }}</td>
+                        <td><code>{{ row.mac }}</code></td>
+                        <td>{{ row.vehicle }}</td>
+                        <td style="text-align:right;" data-sort-value="{{ row.energy or 0 }}">{{ row.energy }}</td>
+                        <td>
+                            {% if row.is_ok is not none %}
+                                {% if row.is_ok %}
+                                    <span class="mac-badge mac-badge-ok">OK</span>
+                                {% else %}
+                                    <span class="mac-badge mac-badge-nok">NOK</span>
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.url %}
+                                <a href="{{ row.url }}" target="_blank" class="mac-link">Ouvrir</a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% elif selected_mac %}
+    <div class="mac-divider"></div>
+    <div class="mac-card">
+        <div class="mac-message">Aucune charge trouvée pour cette adresse MAC.</div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+(function() {
+    function selectMac(macRaw, macDisplay) {
+        document.getElementById('mac-prefix-input').value = macDisplay;
+        filterByMac();
+    }
+    window.selectMac = selectMac;
+
+    function filterByMac() {
+        var input = document.getElementById('mac-prefix-input');
+        var macPrefix = input ? input.value.trim() : '';
+        var params = new URLSearchParams(window.location.search);
+
+        if (typeof state !== 'undefined') {
+            params = new URLSearchParams();
+            if (state.sites && state.sites.length && state.allSites && state.sites.length < state.allSites.length) {
+                params.set('sites', state.sites.join(','));
+            }
+            if (state.dateDebut) params.set('date_debut', state.dateDebut);
+            if (state.dateFin) params.set('date_fin', state.dateFin);
+        }
+
+        params.set('mac_prefix', macPrefix);
+        var url = '/api/kpi/mac-id?' + params.toString();
+        htmx.ajax('GET', url, {target: '#tab-content', swap: 'innerHTML'});
+    }
+    window.filterByMac = filterByMac;
+
+    var tables = document.querySelectorAll('.mac-table');
+    tables.forEach(function(table) {
+        var headers = table.querySelectorAll('th[data-sortable]');
+        var tbody = table.querySelector('tbody');
+        var currentSort = { index: null, dir: 'asc' };
+
+        function parseValue(text, type) {
+            var cleaned = (text || '').toString().replace('%', '').replace(/\s+/g, '');
+            if (type === 'number' && cleaned !== '' && !isNaN(cleaned)) {
+                return parseFloat(cleaned);
+            }
+            return cleaned.toLowerCase();
+        }
+
+        function applySort(index, type) {
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+            var dirMultiplier = currentSort.dir === 'asc' ? 1 : -1;
+            rows.sort(function(a, b) {
+                var aVal = parseValue(a.children[index].dataset.sortValue || a.children[index].textContent.trim(), type);
+                var bVal = parseValue(b.children[index].dataset.sortValue || b.children[index].textContent.trim(), type);
+                if (aVal < bVal) return -1 * dirMultiplier;
+                if (aVal > bVal) return 1 * dirMultiplier;
+                return 0;
+            });
+            rows.forEach(function(row) { tbody.appendChild(row); });
+        }
+
+        function updateIndicators(clickedIndex) {
+            headers.forEach(function(th, idx) {
+                th.classList.remove('sorted-asc', 'sorted-desc');
+                if (idx === clickedIndex) {
+                    th.classList.add(currentSort.dir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                }
+            });
+        }
+
+        headers.forEach(function(th, index) {
+            th.addEventListener('click', function(e) {
+                if (e.target.closest('.mac-clickable')) return;
+                var type = th.dataset.type || 'text';
+                if (currentSort.index === index) {
+                    currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort = { index: index, dir: 'asc' };
+                }
+                applySort(index, type);
+                updateIndicators(index);
+            });
+        });
+    });
+})();
+</script>
